@@ -121,3 +121,5 @@ class DatasetMeta(BaseModel):
     njs: float
     njOffset: float
     difficulty: str
+    song_duration_s: float
+    total_beats: int

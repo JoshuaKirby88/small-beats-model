@@ -22,6 +22,8 @@ class DatasetBuilder:
         if not self.dataset_dir.exists():
             self.dataset_dir.mkdir(parents=True)
 
+        self.label_processor.build_vocab()
+
     def build(self):
         for map_dir in self.data_dir.iterdir():
             loaded_map = self.loader.load_map(map_dir=map_dir)
@@ -35,7 +37,6 @@ class DatasetBuilder:
             for diff_map, diff in diff_map_tuples:
                 audio_duration_s = self.audio_processor.get_duration_s(audio_tensor)
                 total_beats = (audio_duration_s / 60) * info.beatsPerMinute
-                self.label_processor.build_vocab()
                 label_tensor = self.label_processor.notes_to_grid(
                     notes=diff.notes, total_beats=total_beats
                 )
@@ -48,6 +49,8 @@ class DatasetBuilder:
                     njs=diff_map.noteJumpMovementSpeed,
                     njOffset=diff_map.noteJumpStartBeatOffset,
                     difficulty=diff_map.difficulty,
+                    song_duration_s=audio_duration_s,
+                    total_beats=len(diff.notes),
                 )
 
                 audio_tensor_file = feature_dir / "features.pt"
