@@ -7,8 +7,7 @@ import requests
 
 from small_beats_model.models import BeatSaverMap, BeatSaverResponse
 
-# Figure out disk size of 1 sample
-# Figure out params to use to collect data (rating, votes, created, difficulty, beats/second, duration)
+# Figure out disk size of 1 sample = ~20MB
 
 BEATSAVER_API_URL = "https://api.beatsaver.com"
 DATA_DIR = Path("data/raw")
@@ -43,11 +42,11 @@ class BeatSaverScraper:
             print(f"Error fetching page {e}")
             return []
 
-    def download_map(self, map_data: BeatSaverMap) -> bool:
-        zip_path = self.temp_data_dir / f"{map_data.id}.zip"
-        unzip_dir = self.output_dir / f"{map_data.id}"
+    def download_map(self, beat_saver_map: BeatSaverMap) -> bool:
+        zip_path = self.temp_data_dir / f"{beat_saver_map.id}.zip"
+        unzip_dir = self.output_dir / f"{beat_saver_map.id}"
 
-        response = requests.get(map_data.versions[-1].downloadURL, stream=True)
+        response = requests.get(beat_saver_map.versions[-1].downloadURL, stream=True)
         response.raise_for_status()
 
         with zip_path.open("wb") as f:

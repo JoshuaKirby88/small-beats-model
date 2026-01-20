@@ -58,15 +58,18 @@ class MapDiffNote(BaseModel):
         alias="_lineLayer",
         description="Vertical height of the notes 0=bottom 1=middle 2=top",
     )
-    type: int = Field(alias="_type")
-    cutDirection: int = Field(alias="_cutDirection")
+    type: int = Field(alias="_type", description="Color 0=red 1=blue")
+    cutDirection: int = Field(
+        alias="_cutDirection",
+        description="0=up 1=down 2=left 3=right 4=up-left 5=up-right 6=down-left 7=down-right 8=dot",
+    )
 
 
 class MapDiffFile(BaseModel):
     notes: list[MapDiffNote] = Field(alias="_notes")
 
 
-class DifficultyRank(BaseModel):
+class MapInfoDiff(BaseModel):
     difficulty: str = Field(alias="_difficulty")
     difficultyRank: int = Field(alias="_difficultyRank")
     beatmapFilename: str = Field(alias="_beatmapFilename")
@@ -74,9 +77,9 @@ class DifficultyRank(BaseModel):
     noteJumpStartBeatOffset: float = Field(alias="_noteJumpStartBeatOffset")
 
 
-class DifficultyBeatmapSet(BaseModel):
+class MapInfoDiffSet(BaseModel):
     beatmapCharacteristicName: str = Field(alias="_beatmapCharacteristicName")
-    difficultyBeatmaps: list[DifficultyRank] = Field(alias="_difficultyBeatmaps")
+    difficultyBeatmaps: list[MapInfoDiff] = Field(alias="_difficultyBeatmaps")
 
 
 class MapInfoFile(BaseModel):
@@ -94,6 +97,27 @@ class MapInfoFile(BaseModel):
     songFilename: str = Field(alias="_songFilename")
     coverImageFilename: str = Field(alias="_coverImageFilename")
     environmentName: str = Field(alias="_environmentName")
-    difficultyBeatmapSets: list[DifficultyBeatmapSet] = Field(
-        alias="_difficultyBeatmapSets"
-    )
+    difficultyBeatmapSets: list[MapInfoDiffSet] = Field(alias="_difficultyBeatmapSets")
+
+
+# ---
+
+
+class VocabKey(BaseModel):
+    color: int
+    direction: int
+    col: int
+    row: int
+
+    class Config:
+        frozen = True
+
+
+# ---
+
+
+class DatasetMeta(BaseModel):
+    bpm: float
+    njs: float
+    njOffset: float
+    difficulty: str
