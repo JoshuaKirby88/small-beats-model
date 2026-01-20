@@ -44,3 +44,56 @@ class BeatSaverResponse(BaseModel):
 
     docs: list[BeatSaverMap]
 
+
+# ---
+
+
+class MapDiffNote(BaseModel):
+    time: float = Field(alias="_time")
+    lineIndex: int = Field(
+        alias="_lineIndex",
+        description="Horizontal width of the notes 0=left 1=mid_left 2=mid_right 3=right",
+    )
+    lineLayer: int = Field(
+        alias="_lineLayer",
+        description="Vertical height of the notes 0=bottom 1=middle 2=top",
+    )
+    type: int = Field(alias="_type")
+    cutDirection: int = Field(alias="_cutDirection")
+
+
+class MapDiffFile(BaseModel):
+    notes: list[MapDiffNote] = Field(alias="_notes")
+
+
+class DifficultyRank(BaseModel):
+    difficulty: str = Field(alias="_difficulty")
+    difficultyRank: int = Field(alias="_difficultyRank")
+    beatmapFilename: str = Field(alias="_beatmapFilename")
+    noteJumpMovementSpeed: float = Field(alias="_noteJumpMovementSpeed")
+    noteJumpStartBeatOffset: float = Field(alias="_noteJumpStartBeatOffset")
+
+
+class DifficultyBeatmapSet(BaseModel):
+    beatmapCharacteristicName: str = Field(alias="_beatmapCharacteristicName")
+    difficultyBeatmaps: list[DifficultyRank] = Field(alias="_difficultyBeatmaps")
+
+
+class MapInfoFile(BaseModel):
+    version: str = Field(alias="_version")
+    songName: str = Field(alias="_songName")
+    songSubName: str = Field(alias="_songSubName")
+    songAuthorName: str = Field(alias="_songAuthorName")
+    levelAuthorName: str = Field(alias="_levelAuthorName")
+    beatsPerMinute: float = Field(alias="_beatsPerMinute")
+    songTimeOffset: float = Field(alias="_songTimeOffset")
+    shuffle: float = Field(alias="_shuffle")
+    shufflePeriod: float = Field(alias="_shufflePeriod")
+    previewStartTime: float = Field(alias="_previewStartTime")
+    previewDuration: float = Field(alias="_previewDuration")
+    songFilename: str = Field(alias="_songFilename")
+    coverImageFilename: str = Field(alias="_coverImageFilename")
+    environmentName: str = Field(alias="_environmentName")
+    difficultyBeatmapSets: list[DifficultyBeatmapSet] = Field(
+        alias="_difficultyBeatmapSets"
+    )
