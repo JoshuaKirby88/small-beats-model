@@ -35,6 +35,12 @@ class AudioProcessor:
 
 STEPS_PER_BEAT = 4
 
+NUM_COLORS = 2
+NUM_DIRECTIONS = 9
+NUM_COLS = 4
+NUM_ROWS = 3
+VOCAB_SIZE = NUM_COLORS * NUM_DIRECTIONS * NUM_COLS * NUM_ROWS + 1
+
 
 class LabelProcessor:
     def __init__(self, steps_per_beat=STEPS_PER_BEAT):
@@ -45,10 +51,10 @@ class LabelProcessor:
         index = 1  # 0=empty
         vocab: Dict[VocabKey, int] = {}
 
-        for color in [0, 1]:
-            for direction in range(9):
-                for col in range(4):
-                    for row in range(3):
+        for color in range(NUM_COLORS):
+            for direction in range(NUM_DIRECTIONS):
+                for col in range(NUM_COLS):
+                    for row in range(NUM_ROWS):
                         key = VocabKey(
                             color=color, direction=direction, col=col, row=row
                         )

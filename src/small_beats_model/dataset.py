@@ -12,7 +12,9 @@ DATA_DIR = Path("data/processed")
 TARGET_BPM = 120
 WINDOW_BEATS = 32
 FPS = SAMPLE_RATE / HOP_LENGTH
-TARGET_FRAMES = int(WINDOW_BEATS * (60 / TARGET_BPM) * FPS)
+_RAW_FRAMES = int(WINDOW_BEATS * (60 / TARGET_BPM) * FPS)
+_OUTPUT_STEPS = WINDOW_BEATS * STEPS_PER_BEAT
+TARGET_FRAMES = ((_RAW_FRAMES + _OUTPUT_STEPS - 1) // _OUTPUT_STEPS) * _OUTPUT_STEPS
 
 
 class BeatsDataset(Dataset):
@@ -65,6 +67,13 @@ class BeatsDataset(Dataset):
         audio_end_frame = int(end_time * self.fps)
 
         audio_slice = audio_tensor[:, audio_start_frame:audio_end_frame]
+
+        expected_audio_width = audio_end_frame - audio_start_frame
+        current_audio_width = audio_slice.shape[1]
+        if current_audio_width < expected_audio_width:
+            pad_audio_amount = expected_audio_width - current_audio_width
+            audio_slice = F.pad(audio_slice, (0, pad_audio_amount))
+
         audio_input = audio_slice.unsqueeze(0)
         audio_resampled = F.interpolate(
             input=audio_input,
@@ -79,5 +88,11 @@ class BeatsDataset(Dataset):
         label_start_frame = window_i * self.window_beats * self.steps_per_beat
         label_end_frame = label_start_frame + self.window_beats * self.steps_per_beat
         label_slice = label_tensor[label_start_frame:label_end_frame]
+
+        expected_label_width = label_end_frame - label_start_frame
+        current_label_width = label_slice.shape[0]
+        if current_label_width < expected_label_width:
+            pad_label_amount = expected_label_width - current_label_width
+            label_slice = F.pad(label_slice, (0, pad_label_amount))
 
         return (final_audio, label_slice)
