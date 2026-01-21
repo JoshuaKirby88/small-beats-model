@@ -1,6 +1,5 @@
 from math import ceil
 from pathlib import Path
-from typing import Dict
 
 import librosa
 import torch
@@ -47,9 +46,9 @@ class LabelProcessor:
         self.steps_per_beat = steps_per_beat
         self.vocab = self.build_vocab()
 
-    def build_vocab(self) -> Dict[VocabKey, int]:
+    def build_vocab(self) -> dict[VocabKey, int]:
         index = 1  # 0=empty
-        vocab: Dict[VocabKey, int] = {}
+        vocab: dict[VocabKey, int] = {}
 
         for color in range(NUM_COLORS):
             for direction in range(NUM_DIRECTIONS):
@@ -83,6 +82,9 @@ class LabelProcessor:
             grid[step_index] = token
 
         return grid
+
+    def get_id_to_key(self) -> dict[int, VocabKey]:
+        return {v: k for k, v in self.vocab.items()}
 
 
 if __name__ == "__main__":

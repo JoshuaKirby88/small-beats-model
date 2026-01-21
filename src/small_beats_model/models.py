@@ -66,7 +66,11 @@ class MapDiffNote(BaseModel):
 
 
 class MapDiffFile(BaseModel):
+    version: str = Field(alias="_version")
     notes: list[MapDiffNote] = Field(alias="_notes")
+    events: list = Field(alias="_events")
+    obstacles: list = Field(alias="_obstacles")
+    bookmarks: list = Field(alias="_bookmarks")
 
 
 class MapInfoDiff(BaseModel):
