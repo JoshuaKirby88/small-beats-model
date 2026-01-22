@@ -1,69 +1,61 @@
 import json
 from pathlib import Path
-from typing import Optional
 
-from small_beats_model.models import (
-    MapDiffFile,
-    MapInfoDiff,
-    MapInfoDiffSet,
-    MapInfoFile,
-)
+from small_beats_model.models import DatasetMeta, DiffFile, InfoDiff, InfoFile
 
-CHARACTERISTIC_FILTERS = ["Standard"]
+SCRAPED_DATA_DIR = Path("data/raw")
+DATASET_DIR = Path("data/processed")
+PREDICTION_DIR = Path("data/predictions")
 
 
 class MapLoader:
-    def __init__(self, characteristic_filters=CHARACTERISTIC_FILTERS):
-        self.characteristic_filters = characteristic_filters
+    def __init__(self):
+        self.scraped_dir = SCRAPED_DATA_DIR
+        self.dataset_dir = DATASET_DIR
 
-    def is_v2_info(self, raw_info: dict) -> bool:
-        return raw_info.get("_version", "").startswith("2.")
+    def load_info_file(self, map_dir: Path):
+        info_path = map_dir / "Info.dat"
+        with open(info_path, "r", encoding="utf-8") as f:
+            return InfoFile.model_validate(json.load(f))
 
-    def is_valid_characteristic_diff(self, diff_set: MapInfoDiffSet) -> bool:
-        return diff_set.beatmapCharacteristicName in self.characteristic_filters
+    def load_diff_file(self, diff_path: Path):
+        try:
+            with open(diff_path, "r", encoding="utf-8") as f:
+                return DiffFile.model_validate(json.load(f))
+        except FileNotFoundError:
+            return None
 
-    def is_v2_diff(self, raw_diff_map: dict) -> bool:
-        return "_notes" in raw_diff_map and len(raw_diff_map.get("_notes", [])) > 0
+    def load_diff_files(self, map_dir: Path, info_file: InfoFile):
+        diff_tuples: list[tuple[InfoDiff, DiffFile]] = []
+        for diff_set in info_file.difficultyBeatmapSets:
+            for diff_map in diff_set.difficultyBeatmaps:
+                diff_path = map_dir / diff_map.beatmapFilename
+                maybe_diff_file = self.load_diff_file(diff_path)
+                if maybe_diff_file is not None:
+                    diff_tuples.append((diff_map, maybe_diff_file))
+        return diff_tuples
 
-    def load_info(self, path: Path) -> Optional[MapInfoFile]:
-        with path.open("r", encoding="utf-8") as f:
-            raw_info = json.load(f)
-        if self.is_v2_info(raw_info):
-            return MapInfoFile.model_validate(raw_info)
+    def iter_scraped(self):
+        for map_dir in self.scraped_dir.iterdir():
+            info_file = self.load_info_file(map_dir)
+            diff_tuples = self.load_diff_files(map_dir, info_file)
+            map_id = map_dir.name
+            yield (info_file, diff_tuples, map_id)
 
-    def get_valid_diff_sets(self, info: MapInfoFile):
-        return filter(
-            lambda diff_set: diff_set.beatmapCharacteristicName
-            in self.characteristic_filters,
-            info.difficultyBeatmapSets,
-        )
+    def load_meta(self, map_dir: Path):
+        with open(map_dir / "meta.json", "r", encoding="utf-8") as f:
+            return DatasetMeta.model_validate(json.load(f))
 
-    def load_difficulties(self, map_dir: Path, diff_set: MapInfoDiffSet):
-        diff_map_tuples: list[tuple[MapInfoDiff, MapDiffFile]] = []
+    def iter_processed_meta(self):
+        for map_dir in self.dataset_dir.iterdir():
+            meta = self.load_meta(map_dir)
+            map_id_diff = map_dir.name
+            yield (meta, map_id_diff)
 
-        for diff_map in diff_set.difficultyBeatmaps:
-            diff_file = map_dir / diff_map.beatmapFilename
-            with diff_file.open("r", encoding="utf-8") as f:
-                raw_diff_map = json.load(f)
-            if self.is_v2_diff(raw_diff_map):
-                diff_map_tuples.append(
-                    (diff_map, MapDiffFile.model_validate(raw_diff_map))
-                )
+    def load_prediction(self, diff_path: Path):
+        with open(diff_path) as f:
+            return DiffFile.model_validate(json.load(f))
 
-        return diff_map_tuples
-
-    def load_map(self, map_dir: Path):
-        if not map_dir.is_dir():
-            return
-
-        info = self.load_info(map_dir / "Info.dat")
-        if info is None:
-            return
-
-        diff_sets = self.get_valid_diff_sets(info)
-
-        diff_tuples: list[tuple[MapInfoDiff, MapDiffFile]] = []
-        for diff_set in diff_sets:
-            diff_tuples.extend(self.load_difficulties(map_dir, diff_set))
-
-        return (info, diff_tuples)
+    def iter_predicted(self):
+        for path in PREDICTION_DIR.iterdir():
+            yield self.load_prediction(path)

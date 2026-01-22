@@ -6,49 +6,47 @@ from torch.utils.data import DataLoader
 from small_beats_model.dataset import BeatsDataset
 from small_beats_model.model import SmallBeatsNet
 
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
-EPOCHS = 10
+EPOCHS = 1000
 TRAIN_VAL_SPLIT = 0.8
-MODEL_FILE = Path("models/best_model.pth")
+MODEL_PATH = Path("models/best_model.pth")
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
 class Train:
-    def __init__(
-        self,
-        batch_size=BATCH_SIZE,
-        learning_rate=LEARNING_RATE,
-        epochs=EPOCHS,
-        train_val_split=TRAIN_VAL_SPLIT,
-        model_file=MODEL_FILE,
-    ):
-        if not model_file.parent.exists():
-            model_file.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self):
+        self.batch_size = BATCH_SIZE
+        self.learning_rate = LEARNING_RATE
+        self.epochs = EPOCHS
+        self.train_val_split = TRAIN_VAL_SPLIT
+        self.model_path = MODEL_PATH
+
+        self.model_path.parent.mkdir(parents=True, exist_ok=True)
 
         dataset = BeatsDataset()
-        train_size = int(train_val_split * len(dataset))
+        train_size = int(self.train_val_split * len(dataset))
         val_size = len(dataset) - train_size
         train_dataset, val_dataset = torch.utils.data.random_split(
             dataset, [train_size, val_size]
         )
         train_loader = DataLoader(
-            train_dataset, shuffle=True, num_workers=0, batch_size=batch_size
+            train_dataset, shuffle=True, num_workers=0, batch_size=self.batch_size
         )
         val_loader = DataLoader(
-            val_dataset, shuffle=True, num_workers=0, batch_size=batch_size
+            val_dataset, shuffle=True, num_workers=0, batch_size=self.batch_size
         )
 
         model = SmallBeatsNet()
         model.to(device)
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
         criterion = torch.nn.CrossEntropyLoss()
 
         best_val_loss = float("inf")
 
-        for epoch in range(epochs):
+        for epoch in range(self.epochs):
             model.train()
 
             for batch_i, (audio, targets) in enumerate(train_loader):
@@ -80,7 +78,7 @@ class Train:
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
-                torch.save(model.state_dict(), MODEL_FILE)
+                torch.save(model.state_dict(), MODEL_PATH)
                 print(f"New best model with validation loss {val_loss} saved")
 
             avg_loss = val_loss / len(val_loader)

@@ -4,21 +4,29 @@ from pathlib import Path
 import librosa
 import torch
 
-from small_beats_model.models import MapDiffNote, VocabKey
+from small_beats_model.models import DiffNote, VocabKey
 
 SAMPLE_RATE = 22050
 N_MFCC = 40
 HOP_LENGTH = 512
 
+STEPS_PER_BEAT = 4
+
+NUM_COLORS = 2
+NUM_DIRECTIONS = 9
+NUM_COLS = 4
+NUM_ROWS = 3
+VOCAB_SIZE = NUM_COLORS * NUM_DIRECTIONS * NUM_COLS * NUM_ROWS + 1
+
 
 class AudioProcessor:
-    def __init__(self, sample_rate=SAMPLE_RATE, n_mfcc=N_MFCC, hop_length=HOP_LENGTH):
-        self.sample_rate = sample_rate
-        self.n_mfcc = n_mfcc
-        self.hop_length = hop_length
+    def __init__(self):
+        self.sample_rate = SAMPLE_RATE
+        self.n_mfcc = N_MFCC
+        self.hop_length = HOP_LENGTH
 
-    def process_audio(self, audio_path: Path) -> torch.Tensor:
-        (audio_array, sample_rate) = librosa.load(audio_path, sr=self.sample_rate)
+    def process_audio(self, audio_path: Path):
+        (audio_array, _) = librosa.load(audio_path, sr=self.sample_rate)
         mfcc = librosa.feature.mfcc(
             y=audio_array,
             sr=self.sample_rate,
@@ -32,21 +40,12 @@ class AudioProcessor:
         return audio_tensor.shape[1] * self.hop_length / self.sample_rate
 
 
-STEPS_PER_BEAT = 4
-
-NUM_COLORS = 2
-NUM_DIRECTIONS = 9
-NUM_COLS = 4
-NUM_ROWS = 3
-VOCAB_SIZE = NUM_COLORS * NUM_DIRECTIONS * NUM_COLS * NUM_ROWS + 1
-
-
 class LabelProcessor:
-    def __init__(self, steps_per_beat=STEPS_PER_BEAT):
-        self.steps_per_beat = steps_per_beat
+    def __init__(self):
+        self.steps_per_beat = STEPS_PER_BEAT
         self.vocab = self.build_vocab()
 
-    def build_vocab(self) -> dict[VocabKey, int]:
+    def build_vocab(self):
         index = 1  # 0=empty
         vocab: dict[VocabKey, int] = {}
 
@@ -62,9 +61,7 @@ class LabelProcessor:
 
         return vocab
 
-    def notes_to_grid(
-        self, notes: list[MapDiffNote], total_beats: float
-    ) -> torch.Tensor:
+    def notes_to_grid(self, notes: list[DiffNote], total_beats: float):
         total_steps = ceil(total_beats * self.steps_per_beat)
         grid = torch.zeros(total_steps, dtype=torch.long)
 

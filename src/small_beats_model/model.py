@@ -12,39 +12,38 @@ NUM_LAYERS = 2
 
 
 class SmallBeatsNet(nn.Module):
-    def __init__(
-        self,
-        n_mfcc=N_MFCC,
-        hidden_dims=HIDDEN_DIMS,
-        kernel_size=KERNEL_SIZE,
-        padding=PADDING,
-        output_steps=OUTPUT_STEPS,
-        num_layers=NUM_LAYERS,
-    ):
+    def __init__(self):
         super().__init__()
+
+        self.hidden_dims = HIDDEN_DIMS
+        self.kernel_size = KERNEL_SIZE
+        self.padding = PADDING
+        self.output_steps = OUTPUT_STEPS
+        self.num_layers = NUM_LAYERS
+        self.n_mfcc = N_MFCC
 
         self.encoder = nn.Sequential(
             nn.Conv1d(
-                in_channels=n_mfcc,
-                out_channels=hidden_dims,
-                kernel_size=kernel_size,
-                padding=padding,
+                in_channels=self.n_mfcc,
+                out_channels=self.hidden_dims,
+                kernel_size=self.kernel_size,
+                padding=self.padding,
             ),
-            nn.BatchNorm1d(num_features=hidden_dims),
+            nn.BatchNorm1d(num_features=self.hidden_dims),
             nn.ReLU(),
         )
 
-        self.adapter = nn.AdaptiveAvgPool1d(output_size=output_steps)
+        self.adapter = nn.AdaptiveAvgPool1d(output_size=self.output_steps)
 
         self.rnn = nn.GRU(
-            input_size=hidden_dims,
-            hidden_size=hidden_dims,
-            num_layers=num_layers,
+            input_size=self.hidden_dims,
+            hidden_size=self.hidden_dims,
+            num_layers=self.num_layers,
             batch_first=True,
             bidirectional=True,
         )
 
-        self.head = nn.Linear(in_features=hidden_dims * 2, out_features=VOCAB_SIZE)
+        self.head = nn.Linear(in_features=self.hidden_dims * 2, out_features=VOCAB_SIZE)
 
     def forward(self, x):
         x = self.encoder(x)

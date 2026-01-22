@@ -2,8 +2,6 @@ from pydantic import BaseModel, Field
 
 
 class BeatSaverDiff(BaseModel):
-    """Represents a single difficulty of a map."""
-
     njs: float
     notes: int
     nps: float
@@ -13,15 +11,11 @@ class BeatSaverDiff(BaseModel):
 
 
 class VeatSaverVersion(BaseModel):
-    """Represents a specific version of a map."""
-
     diffs: list[BeatSaverDiff]
     downloadURL: str
 
 
 class BeatSaverMetadata(BaseModel):
-    """Inner metadata about the song itself."""
-
     bpm: float
     duration: int
     songName: str
@@ -29,9 +23,7 @@ class BeatSaverMetadata(BaseModel):
     levelAuthorName: str
 
 
-class BeatSaverMap(BaseModel):
-    """The top-level Map object from the API."""
-
+class BeatSaverDoc(BaseModel):
     id: str
     name: str
     description: str
@@ -40,15 +32,13 @@ class BeatSaverMap(BaseModel):
 
 
 class BeatSaverResponse(BaseModel):
-    """The wrapper for search/latest results."""
-
-    docs: list[BeatSaverMap]
+    docs: list[BeatSaverDoc]
 
 
 # ---
 
 
-class MapDiffNote(BaseModel):
+class DiffNote(BaseModel):
     time: float = Field(alias="_time")
     lineIndex: int = Field(
         alias="_lineIndex",
@@ -65,15 +55,12 @@ class MapDiffNote(BaseModel):
     )
 
 
-class MapDiffFile(BaseModel):
+class DiffFile(BaseModel):
     version: str = Field(alias="_version")
-    notes: list[MapDiffNote] = Field(alias="_notes")
-    events: list = Field(alias="_events")
-    obstacles: list = Field(alias="_obstacles")
-    bookmarks: list = Field(alias="_bookmarks")
+    notes: list[DiffNote] = Field(alias="_notes")
 
 
-class MapInfoDiff(BaseModel):
+class InfoDiff(BaseModel):
     difficulty: str = Field(alias="_difficulty")
     difficultyRank: int = Field(alias="_difficultyRank")
     beatmapFilename: str = Field(alias="_beatmapFilename")
@@ -81,12 +68,12 @@ class MapInfoDiff(BaseModel):
     noteJumpStartBeatOffset: float = Field(alias="_noteJumpStartBeatOffset")
 
 
-class MapInfoDiffSet(BaseModel):
+class InfoDiffSet(BaseModel):
     beatmapCharacteristicName: str = Field(alias="_beatmapCharacteristicName")
-    difficultyBeatmaps: list[MapInfoDiff] = Field(alias="_difficultyBeatmaps")
+    difficultyBeatmaps: list[InfoDiff] = Field(alias="_difficultyBeatmaps")
 
 
-class MapInfoFile(BaseModel):
+class InfoFile(BaseModel):
     version: str = Field(alias="_version")
     songName: str = Field(alias="_songName")
     songSubName: str = Field(alias="_songSubName")
@@ -101,7 +88,7 @@ class MapInfoFile(BaseModel):
     songFilename: str = Field(alias="_songFilename")
     coverImageFilename: str = Field(alias="_coverImageFilename")
     environmentName: str = Field(alias="_environmentName")
-    difficultyBeatmapSets: list[MapInfoDiffSet] = Field(alias="_difficultyBeatmapSets")
+    difficultyBeatmapSets: list[InfoDiffSet] = Field(alias="_difficultyBeatmapSets")
 
 
 # ---

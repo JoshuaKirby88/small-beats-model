@@ -1,14 +1,13 @@
-import json
 from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from small_beats_model.models import DatasetMeta
+from small_beats_model.build_dataset import DATASET_DIR
+from small_beats_model.loader import MapLoader
 from small_beats_model.preprocessing import HOP_LENGTH, SAMPLE_RATE, STEPS_PER_BEAT
 
-DATA_DIR = Path("data/processed")
 TARGET_BPM = 120
 WINDOW_BEATS = 32
 FPS = SAMPLE_RATE / HOP_LENGTH
@@ -18,34 +17,20 @@ TARGET_FRAMES = ((_RAW_FRAMES + _OUTPUT_STEPS - 1) // _OUTPUT_STEPS) * _OUTPUT_S
 
 
 class BeatsDataset(Dataset):
-    def __init__(
-        self,
-        data_dir=DATA_DIR,
-        target_bpm=TARGET_BPM,
-        window_beats=WINDOW_BEATS,
-        fps=FPS,
-        target_frames=TARGET_FRAMES,
-        steps_per_beat=STEPS_PER_BEAT,
-    ):
-        self.data_dir = data_dir
-        self.target_bpm = target_bpm
-        self.window_beats = window_beats
-        self.fps = fps
-        self.target_frames = target_frames
-        self.steps_per_beat = steps_per_beat
+    def __init__(self):
+        self.data_dir = DATASET_DIR
+        self.target_bpm = TARGET_BPM
+        self.window_beats = WINDOW_BEATS
+        self.fps = FPS
+        self.target_frames = TARGET_FRAMES
+        self.steps_per_beat = STEPS_PER_BEAT
         self.indecies: list[tuple[Path, int]] = []
+        self.loader = MapLoader()
 
-        for map_dir in self.data_dir.iterdir():
-            if not map_dir.is_dir():
-                continue
-
-            with open(map_dir / "meta.json", "r") as f:
-                meta = DatasetMeta.model_validate(json.load(f))
-
+        for meta, map_id_diff in self.loader.iter_processed_meta():
             num_windows = int(meta.total_beats / self.window_beats)
-            self.indecies.extend(
-                map(lambda window_i: (map_dir, window_i), range(num_windows))
-            )
+            map_dir = self.data_dir / map_id_diff
+            self.indecies.extend(map(lambda i: (map_dir, i), range(num_windows)))
 
     def __len__(self):
         return len(self.indecies)
@@ -53,9 +38,7 @@ class BeatsDataset(Dataset):
     def __getitem__(self, index: int):
         (map_dir, window_i) = self.indecies[index]
 
-        with open(map_dir / "meta.json") as f:
-            meta = DatasetMeta.model_validate(json.load(f))
-
+        meta = self.loader.load_meta(map_dir)
         audio_tensor: torch.Tensor = torch.load(map_dir / "features.pt")
 
         s_per_beat = 60 / meta.bpm
