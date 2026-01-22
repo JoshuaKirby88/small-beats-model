@@ -6,15 +6,17 @@ from pathlib import Path
 
 from colorama import Fore, Style, init
 
-from small_beats_model.loader import MapLoader
+from small_beats_model.loader import PREDICTION_DIR, SCRAPED_DATA_DIR, MapLoader
 from small_beats_model.models import DiffNote
 from small_beats_model.preprocessing import NUM_COLS, NUM_ROWS
 
-VISUALIZER_STEP_S = 0.5
+VISUALIZER_STEP_S = 0.25
 
 
 class Visualizer:
     def __init__(self):
+        self.scraped_data_dir = SCRAPED_DATA_DIR
+        self.prediction_dir = PREDICTION_DIR
         self.visualizer_step_s = VISUALIZER_STEP_S
         self.arrows = ["↑", "↓", "←", "→", "↖", "↗", "↙", "↘", "•"]
         self.audio_process: subprocess.Popen[bytes] | None = None
@@ -41,8 +43,8 @@ class Visualizer:
         for row in reversed(grid):
             print(" ".join(f"[{cell}]" for cell in row))
 
-    def visualize(self, diff_path: Path):
-        diff_file = self.loader.load_prediction(diff_path)
+    def visualize(self, prediction_diff_dir: Path):
+        diff_file = self.loader.load_prediction_diff_map(prediction_diff_dir)
 
         max_time = ceil(diff_file.notes[-1].time)
         time_steps = [
@@ -58,8 +60,13 @@ class Visualizer:
         if self.audio_process is not None:
             self.audio_process.terminate()
 
+    def visualize_map_id(self, map_id: str):
+        audio_path = self.loader.get_audio_path(map_id)
+        prediction_diff_dir = self.prediction_dir / map_id
+        self.play_audio(audio_path)
+        self.visualize(prediction_diff_dir)
+
 
 if __name__ == "__main__":
     visualizer = Visualizer()
-    visualizer.play_audio(Path("data/raw/271dc/butterfly.egg"))
-    visualizer.visualize(Path("data/predictions/271dc.dat"))
+    visualizer.visualize_map_id("1a0b6")

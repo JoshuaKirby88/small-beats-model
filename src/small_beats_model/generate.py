@@ -86,7 +86,7 @@ class BeatGenerator:
 
         return all_predictions
 
-    def decode_to_json(self, output_file_name: str, predictions: list[int]):
+    def save(self, output_dir_name: str, predictions: list[int]):
         id_to_key = self.label_processor.get_id_to_key()
         notes: list[DiffNote] = []
 
@@ -104,10 +104,15 @@ class BeatGenerator:
             )
             notes.append(note)
 
-        output_data = DiffFile(_version="2.0.0", _notes=notes)
+        diff_file = DiffFile(_version="2.0.0", _notes=notes)
 
-        output_path = (self.prediction_dir / output_file_name).with_suffix(".dat")
-        with open(output_path, "w") as f:
-            f.write(json.dumps(output_data.model_dump(by_alias=True), indent=2))
+        output_dir = self.prediction_dir / output_dir_name
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-        return output_path
+        with open(output_dir / "tokens.json", "w") as f:
+            f.write(json.dumps(predictions))
+
+        with open(output_dir / "Expert.dat", "w") as f:
+            f.write(json.dumps(diff_file.model_dump(by_alias=True), indent=2))
+
+        return output_dir

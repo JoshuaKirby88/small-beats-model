@@ -12,6 +12,11 @@ class MapLoader:
     def __init__(self):
         self.scraped_dir = SCRAPED_DATA_DIR
         self.dataset_dir = DATASET_DIR
+        self.prediction_dir = PREDICTION_DIR
+
+    def get_audio_path(self, map_id: str):
+        info_file = self.load_info_file(self.scraped_dir / map_id)
+        return self.scraped_dir / map_id / info_file.songFilename
 
     def load_info_file(self, map_dir: Path):
         info_path = map_dir / "Info.dat"
@@ -52,10 +57,26 @@ class MapLoader:
             map_id_diff = map_dir.name
             yield (meta, map_id_diff)
 
-    def load_prediction(self, diff_path: Path):
+    def iter_processed_meta_by_map_id(self, map_id: str):
+        dirs = [p for p in self.dataset_dir.iterdir() if p.name.startswith(map_id)]
+        for map_dir in dirs:
+            meta = self.load_meta(map_dir)
+            map_id_diff = map_dir.name
+            yield (meta, map_id_diff)
+
+    def load_prediction_tokens(self, dir: Path) -> list[int]:
+        token_path = dir / "tokens.json"
+        with open(token_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def load_prediction_diff_map(self, dir: Path):
+        diff_path = dir / "Expert.dat"
         with open(diff_path) as f:
             return DiffFile.model_validate(json.load(f))
 
     def iter_predicted(self):
-        for path in PREDICTION_DIR.iterdir():
-            yield self.load_prediction(path)
+        for dir in self.prediction_dir.iterdir():
+            tokens = self.load_prediction_tokens(dir)
+            diff_file = self.load_prediction_diff_map(dir)
+            map_id = dir.name
+            yield (tokens, diff_file, map_id)
