@@ -6,7 +6,11 @@ from torch.utils.data import Dataset
 
 from small_beats_model.build_dataset import DATASET_DIR
 from small_beats_model.loader import MapLoader
-from small_beats_model.preprocessing import HOP_LENGTH, SAMPLE_RATE, STEPS_PER_BEAT
+from small_beats_model.preprocessing import (
+    HOP_LENGTH,
+    SAMPLE_RATE,
+    STEPS_PER_BEAT,
+)
 
 TARGET_BPM = 120
 WINDOW_BEATS = 32
@@ -66,16 +70,18 @@ class BeatsDataset(Dataset):
         )
         final_audio = audio_resampled.squeeze(0)
 
-        label_tensor: torch.Tensor = torch.load(map_dir / "labels.pt")
+        label_pair_tensor: torch.Tensor = torch.load(map_dir / "labels.pt")
 
         label_start_frame = window_i * self.window_beats * self.steps_per_beat
         label_end_frame = label_start_frame + self.window_beats * self.steps_per_beat
-        label_slice = label_tensor[label_start_frame:label_end_frame]
+        label_pair_slice = label_pair_tensor[label_start_frame:label_end_frame]
 
         expected_label_width = label_end_frame - label_start_frame
-        current_label_width = label_slice.shape[0]
+        current_label_width = label_pair_slice.shape[0]
         if current_label_width < expected_label_width:
             pad_label_amount = expected_label_width - current_label_width
-            label_slice = F.pad(label_slice, (0, pad_label_amount))
+            label_pair_slice = F.pad(label_pair_slice, (0, 0, 0, pad_label_amount))
 
-        return (final_audio, label_slice)
+        label_flat_slice = label_pair_slice.flatten()
+
+        return (final_audio, label_flat_slice)

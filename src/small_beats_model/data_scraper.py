@@ -14,7 +14,7 @@ from small_beats_model.models import (
     DiffFile,
     InfoFile,
 )
-from small_beats_model.preprocessing import NUM_COLS, NUM_ROWS
+from small_beats_model.preprocessing import NUM_COLORS, NUM_COLS, NUM_ROWS
 
 # Scrapes BeatSaver and saves the filtered result
 # Info may contain reference to filtered diff files that do not exist
@@ -107,9 +107,10 @@ class BeatSaverScraper:
                 if is_diff_valid:
                     diff_file = DiffFile.model_validate(raw_diff_file)
                     is_notes_valid = all(
-                        note.lineLayer in range(NUM_ROWS) for note in diff_file.notes
-                    ) and all(
-                        note.lineIndex in range(NUM_COLS) for note in diff_file.notes
+                        note.lineLayer in range(NUM_ROWS)
+                        and note.lineIndex in range(NUM_COLS)
+                        and note.type in range(NUM_COLORS)
+                        for note in diff_file.notes
                     )
                     if is_notes_valid:
                         diff_files.append(diff_file)

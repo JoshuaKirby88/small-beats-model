@@ -8,7 +8,7 @@ from small_beats_model.model import SmallBeatsNet
 
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
-EPOCHS = 1000
+EPOCHS = 100
 TRAIN_VAL_SPLIT = 0.8
 MODEL_PATH = Path("models/best_model.pth")
 

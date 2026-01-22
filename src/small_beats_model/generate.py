@@ -10,6 +10,7 @@ from small_beats_model.loader import PREDICTION_DIR
 from small_beats_model.model import SmallBeatsNet
 from small_beats_model.models import DiffFile, DiffNote
 from small_beats_model.preprocessing import (
+    NUM_COLORS,
     SAMPLE_RATE,
     STEPS_PER_BEAT,
     AudioProcessor,
@@ -29,6 +30,7 @@ class BeatGenerator:
         self.step_per_beat = STEPS_PER_BEAT
         self.prediction_dir = PREDICTION_DIR
         self.model_path = MODEL_PATH
+        self.num_colors = NUM_COLORS
 
         self.prediction_dir.mkdir(parents=True, exist_ok=True)
 
@@ -90,19 +92,23 @@ class BeatGenerator:
         id_to_key = self.label_processor.get_id_to_key()
         notes: list[DiffNote] = []
 
-        for i, prediction in enumerate(predictions):
-            if prediction == 0:
-                continue
-            id = id_to_key[prediction]
+        for i in range(int(len(predictions) / 2)):
             time = i / self.step_per_beat
-            note = DiffNote(
-                _time=time,
-                _lineIndex=id.col,
-                _lineLayer=id.row,
-                _type=id.color,
-                _cutDirection=id.direction,
-            )
-            notes.append(note)
+            for color in range(self.num_colors):
+                prediction = predictions[i * 2 + color]
+                if prediction == 0:
+                    continue
+
+                id = id_to_key[prediction]
+                time = i / self.step_per_beat
+                note = DiffNote(
+                    _time=time,
+                    _lineIndex=id.col,
+                    _lineLayer=id.row,
+                    _type=color,
+                    _cutDirection=id.direction,
+                )
+                notes.append(note)
 
         diff_file = DiffFile(_version="2.0.0", _notes=notes)
 

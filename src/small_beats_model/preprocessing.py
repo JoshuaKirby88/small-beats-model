@@ -11,12 +11,12 @@ N_MFCC = 40
 HOP_LENGTH = 512
 
 STEPS_PER_BEAT = 4
-
 NUM_COLORS = 2
+
 NUM_DIRECTIONS = 9
 NUM_COLS = 4
 NUM_ROWS = 3
-VOCAB_SIZE = NUM_COLORS * NUM_DIRECTIONS * NUM_COLS * NUM_ROWS + 1
+VOCAB_SIZE = NUM_DIRECTIONS * NUM_COLS * NUM_ROWS + 1
 
 
 class AudioProcessor:
@@ -43,40 +43,38 @@ class AudioProcessor:
 class LabelProcessor:
     def __init__(self):
         self.steps_per_beat = STEPS_PER_BEAT
+        self.num_colors = NUM_COLORS
         self.vocab = self.build_vocab()
 
     def build_vocab(self):
         index = 1  # 0=empty
         vocab: dict[VocabKey, int] = {}
 
-        for color in range(NUM_COLORS):
-            for direction in range(NUM_DIRECTIONS):
-                for col in range(NUM_COLS):
-                    for row in range(NUM_ROWS):
-                        key = VocabKey(
-                            color=color, direction=direction, col=col, row=row
-                        )
-                        vocab[key] = index
-                        index += 1
+        for direction in range(NUM_DIRECTIONS):
+            for col in range(NUM_COLS):
+                for row in range(NUM_ROWS):
+                    key = VocabKey(direction=direction, col=col, row=row)
+                    vocab[key] = index
+                    index += 1
 
         return vocab
 
     def notes_to_grid(self, notes: list[DiffNote], total_beats: float):
         total_steps = ceil(total_beats * self.steps_per_beat)
-        grid = torch.zeros(total_steps, dtype=torch.long)
+        grid = torch.zeros(total_steps, 2, dtype=torch.long)
 
         for note in notes:
             step_index = int(round(note.time * self.steps_per_beat))
             if step_index >= total_steps:
                 continue
+
             key = VocabKey(
-                color=note.type,
                 direction=note.cutDirection,
                 col=note.lineIndex,
                 row=note.lineLayer,
             )
             token = self.vocab.get(key, 0)
-            grid[step_index] = token
+            grid[step_index, note.type] = token
 
         return grid
 

@@ -42,6 +42,8 @@ class MapLoader:
 
     def iter_scraped(self):
         for map_dir in self.scraped_dir.iterdir():
+            if not map_dir.is_dir():
+                continue
             info_file = self.load_info_file(map_dir)
             diff_tuples = self.load_diff_files(map_dir, info_file)
             map_id = map_dir.name
@@ -53,6 +55,8 @@ class MapLoader:
 
     def iter_processed_meta(self):
         for map_dir in self.dataset_dir.iterdir():
+            if not map_dir.is_dir():
+                continue
             meta = self.load_meta(map_dir)
             map_id_diff = map_dir.name
             yield (meta, map_id_diff)
@@ -60,6 +64,8 @@ class MapLoader:
     def iter_processed_meta_by_map_id(self, map_id: str):
         dirs = [p for p in self.dataset_dir.iterdir() if p.name.startswith(map_id)]
         for map_dir in dirs:
+            if not map_dir.is_dir():
+                continue
             meta = self.load_meta(map_dir)
             map_id_diff = map_dir.name
             yield (meta, map_id_diff)
@@ -76,6 +82,8 @@ class MapLoader:
 
     def iter_predicted(self):
         for dir in self.prediction_dir.iterdir():
+            if not dir.is_dir():
+                continue
             tokens = self.load_prediction_tokens(dir)
             diff_file = self.load_prediction_diff_map(dir)
             map_id = dir.name

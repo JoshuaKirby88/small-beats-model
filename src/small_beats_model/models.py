@@ -95,7 +95,6 @@ class InfoFile(BaseModel):
 
 
 class VocabKey(BaseModel):
-    color: int
     direction: int
     col: int
     row: int

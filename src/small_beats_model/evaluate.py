@@ -19,7 +19,7 @@ class MapEvaluator:
         self.metrics = [
             "empty_ratio",
             "note_density",
-            "unique_counts",
+            "unique_tokens",
             "entropy",
             "pattern_diversity",
         ]
@@ -30,7 +30,8 @@ class MapEvaluator:
         for meta, map_id_diff in self.loader.iter_processed_meta_by_map_id(map_id):
             label_path = self.dataset_dir / map_id_diff / "labels.pt"
             label_tensor: torch.Tensor = torch.load(label_path)
-            tokens: list[int] = label_tensor.tolist()
+            token_pairs: list[list[int]] = label_tensor.tolist()
+            tokens = [t for t_pair in token_pairs for t in t_pair]
             truths.append((meta, tokens, map_id_diff))
         return truths
 
@@ -54,9 +55,9 @@ class MapEvaluator:
             p = count / len(tokens)
             entropy += -p * log2(p)
 
-        unique_counts = len(counts)
+        unique_tokens = len(counts)
 
-        return {"unique_counts": unique_counts, "entropy": entropy}
+        return {"unique_tokens": unique_tokens, "entropy": entropy}
 
     def pattern_diversity(self, tokens: list[int], n: int):
         n_grams: list[tuple[int, ...]] = []
@@ -82,7 +83,7 @@ class MapEvaluator:
         return {
             "empty_ratio": empty_ratio,
             "note_density": note_density,
-            "unique_counts": class_distribution["unique_counts"],
+            "unique_tokens": class_distribution["unique_tokens"],
             "entropy": class_distribution["entropy"],
             "pattern_diversity": pattern_diversity,
         }

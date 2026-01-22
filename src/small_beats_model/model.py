@@ -2,12 +2,17 @@ import torch
 import torch.nn as nn
 
 from small_beats_model.dataset import WINDOW_BEATS
-from small_beats_model.preprocessing import N_MFCC, STEPS_PER_BEAT, VOCAB_SIZE
+from small_beats_model.preprocessing import (
+    N_MFCC,
+    NUM_COLORS,
+    STEPS_PER_BEAT,
+    VOCAB_SIZE,
+)
 
 HIDDEN_DIMS = 256
 KERNEL_SIZE = 3
 PADDING = 1
-OUTPUT_STEPS = WINDOW_BEATS * STEPS_PER_BEAT
+OUTPUT_STEPS = WINDOW_BEATS * STEPS_PER_BEAT * NUM_COLORS
 NUM_LAYERS = 2
 
 
