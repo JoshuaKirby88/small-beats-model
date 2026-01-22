@@ -5,12 +5,14 @@ from torch.utils.data import DataLoader
 
 from small_beats_model.dataset import BeatsDataset
 from small_beats_model.model import SmallBeatsNet
+from small_beats_model.preprocessing import VOCAB_SIZE
 
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
-EPOCHS = 100
+EPOCHS = 20
 TRAIN_VAL_SPLIT = 0.8
 MODEL_PATH = Path("models/best_model.pth")
+CLASS_WEIGHT = {}
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -22,14 +24,29 @@ class Train:
         self.epochs = EPOCHS
         self.train_val_split = TRAIN_VAL_SPLIT
         self.model_path = MODEL_PATH
+        self.vocab_size = VOCAB_SIZE
+        self.dataset = BeatsDataset()
 
         self.model_path.parent.mkdir(parents=True, exist_ok=True)
 
-        dataset = BeatsDataset()
-        train_size = int(self.train_val_split * len(dataset))
-        val_size = len(dataset) - train_size
+    def analyze_data(self):
+        token_counts = torch.zeros(self.vocab_size)
+        for _, targets in self.dataset:
+            for token in targets:
+                token_counts[token] += 1
+        token_counts = token_counts.clamp(min=1)
+        total = token_counts.sum()
+        weights = total / (token_counts * self.vocab_size)
+        weights = torch.clamp(weights, max=10.0, min=0.1)
+        return weights.to(device)
+
+    def train(self):
+        weights = self.analyze_data()
+
+        train_size = int(self.train_val_split * len(self.dataset))
+        val_size = len(self.dataset) - train_size
         train_dataset, val_dataset = torch.utils.data.random_split(
-            dataset, [train_size, val_size]
+            self.dataset, [train_size, val_size]
         )
         train_loader = DataLoader(
             train_dataset, shuffle=True, num_workers=0, batch_size=self.batch_size
@@ -42,7 +59,7 @@ class Train:
         model.to(device)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
-        criterion = torch.nn.CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss(weight=weights)
 
         best_val_loss = float("inf")
 
@@ -91,3 +108,4 @@ class Train:
 
 if __name__ == "__main__":
     train = Train()
+    train.train()

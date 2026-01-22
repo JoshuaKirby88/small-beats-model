@@ -18,12 +18,14 @@ class BeatGeneratorRunner:
         )
         print(f"Saved to {output_path}")
 
-    def run_many(self):
-        for info_file, _, map_id in self.loader.iter_scraped():
+    def run_many(self, max: int):
+        for i, (info_file, _, map_id) in enumerate(self.loader.iter_scraped()):
+            if i >= max:
+                break
             audio_path = self.scraped_data_dir / map_id / info_file.songFilename
             self.run(audio_path=audio_path, output_dir_name=map_id)
 
 
 if __name__ == "__main__":
     runner = BeatGeneratorRunner()
-    runner.run_many()
+    runner.run_many(1)
