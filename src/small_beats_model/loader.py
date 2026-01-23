@@ -6,6 +6,8 @@ from small_beats_model.models import DatasetMeta, DiffFile, InfoDiff, InfoFile
 SCRAPED_DATA_DIR = Path("data/raw")
 DATASET_DIR = Path("data/processed")
 PREDICTION_DIR = Path("data/predictions")
+INPUT_DIR = Path("data/inputs")
+EXPORT_DIR = Path("data/exports")
 
 
 class MapLoader:
@@ -23,19 +25,19 @@ class MapLoader:
         with open(info_path, "r", encoding="utf-8") as f:
             return InfoFile.model_validate(json.load(f))
 
-    def load_diff_file(self, diff_path: Path):
+    def load_scraped_diff_file(self, diff_path: Path):
         try:
             with open(diff_path, "r", encoding="utf-8") as f:
                 return DiffFile.model_validate(json.load(f))
         except FileNotFoundError:
             return None
 
-    def load_diff_files(self, map_dir: Path, info_file: InfoFile):
+    def load_scraped_diff_files(self, map_dir: Path, info_file: InfoFile):
         diff_tuples: list[tuple[InfoDiff, DiffFile]] = []
         for diff_set in info_file.difficultyBeatmapSets:
             for diff_map in diff_set.difficultyBeatmaps:
                 diff_path = map_dir / diff_map.beatmapFilename
-                maybe_diff_file = self.load_diff_file(diff_path)
+                maybe_diff_file = self.load_scraped_diff_file(diff_path)
                 if maybe_diff_file is not None:
                     diff_tuples.append((diff_map, maybe_diff_file))
         return diff_tuples
@@ -45,7 +47,7 @@ class MapLoader:
             if not map_dir.is_dir():
                 continue
             info_file = self.load_info_file(map_dir)
-            diff_tuples = self.load_diff_files(map_dir, info_file)
+            diff_tuples = self.load_scraped_diff_files(map_dir, info_file)
             map_id = map_dir.name
             yield (info_file, diff_tuples, map_id)
 
@@ -75,8 +77,7 @@ class MapLoader:
         with open(token_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    def load_prediction_diff_map(self, dir: Path):
-        diff_path = dir / "Expert.dat"
+    def load_diff_map(self, diff_path: Path):
         with open(diff_path) as f:
             return DiffFile.model_validate(json.load(f))
 
@@ -85,6 +86,6 @@ class MapLoader:
             if not dir.is_dir():
                 continue
             tokens = self.load_prediction_tokens(dir)
-            diff_file = self.load_prediction_diff_map(dir)
+            diff_file = self.load_diff_map(dir / "Expert.dat")
             map_id = dir.name
             yield (tokens, diff_file, map_id)
