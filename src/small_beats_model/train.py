@@ -1,9 +1,13 @@
+import csv
+from datetime import datetime
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 
 from small_beats_model.dataset import BeatsDataset
+from small_beats_model.loader import RUN_DIR
 from small_beats_model.model import SmallBeatsNet
 from small_beats_model.preprocessing import VOCAB_SIZE
 
@@ -11,10 +15,8 @@ BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
 EPOCHS = 20
 TRAIN_VAL_SPLIT = 0.8
-MODEL_PATH = Path("models/best_model.pth")
-CLASS_WEIGHT = {}
 
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+device = torch.device("mps" if torch.mps.is_available() else "cpu")
 
 
 class Train:
@@ -23,11 +25,11 @@ class Train:
         self.learning_rate = LEARNING_RATE
         self.epochs = EPOCHS
         self.train_val_split = TRAIN_VAL_SPLIT
-        self.model_path = MODEL_PATH
         self.vocab_size = VOCAB_SIZE
         self.dataset = BeatsDataset()
 
-        self.model_path.parent.mkdir(parents=True, exist_ok=True)
+        self.run_dir = RUN_DIR / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.run_dir.mkdir(parents=True, exist_ok=True)
 
     def analyze_data(self):
         token_counts = torch.zeros(self.vocab_size)
@@ -39,6 +41,25 @@ class Train:
         weights = total / (token_counts * self.vocab_size)
         weights = torch.clamp(weights, max=10.0, min=0.1)
         return weights.to(device)
+
+    def plot(
+        self, output_path: Path, train_losses: list[float], val_losses: list[float]
+    ):
+        plt.figure(figsize=(10, 5))
+        plt.plot(train_losses, label="Training Loss")
+        plt.plot(val_losses, label="Validation Loss")
+        plt.title("Training VS Validation Loss")
+        plt.xlabel("Epochs")
+        plt.ylabel("Loss")
+        plt.legend()
+
+        plt.savefig(output_path)
+
+        with open(self.run_dir / "training_log.csv", "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["epoch", "train_loss", "val_loss"])
+            for epoch, (t_loss, v_loss) in enumerate(zip(train_losses, val_losses)):
+                writer.writerow([epoch, round(t_loss, 2), round(v_loss, 2)])
 
     def train(self):
         weights = self.analyze_data()
@@ -61,26 +82,29 @@ class Train:
         optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
         criterion = torch.nn.CrossEntropyLoss(weight=weights)
 
+        train_losses: list[float] = []
+        val_losses: list[float] = []
         best_val_loss = float("inf")
 
         for epoch in range(self.epochs):
             model.train()
 
-            for batch_i, (audio, targets) in enumerate(train_loader):
+            total_train_loss = 0
+            for audio, targets in train_loader:
                 audio: torch.Tensor = audio.to(device)
                 targets: torch.Tensor = targets.to(device)
                 optimizer.zero_grad()
                 predictions = model(audio)
-                loss = criterion(predictions.permute(0, 2, 1), targets)
-                loss.backward()
+                train_loss: torch.Tensor = criterion(
+                    predictions.permute(0, 2, 1), targets
+                )
+                train_loss.backward()
                 optimizer.step()
-
-                if batch_i % 10 == 0:
-                    print(f"Epoch {epoch} | Batch {batch_i} | Loss: {loss.item():.4f}")
+                total_train_loss += train_loss.item()
 
             model.eval()
 
-            val_loss = 0.0
+            total_val_loss = 0
             correct = 0
             total = 0
 
@@ -88,22 +112,33 @@ class Train:
                 for audio, targets in val_loader:
                     audio, targets = audio.to(device), targets.to(device)
                     predictions = model(audio)
-                    loss = criterion(predictions.permute(0, 2, 1), targets)
-                    val_loss += loss.item()
+                    val_loss: torch.Tensor = criterion(
+                        predictions.permute(0, 2, 1), targets
+                    )
+                    total_val_loss += val_loss.item()
                     correct += (predictions.argmax(dim=2) == targets).sum().item()
                     total += targets.numel()
 
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                torch.save(model.state_dict(), MODEL_PATH)
-                print(f"New best model with validation loss {val_loss} saved")
-
-            avg_loss = val_loss / len(val_loader)
-            accuracy = correct / total
+            avg_train_loss = total_train_loss / len(train_loader)
+            avg_val_loss = total_val_loss / len(val_loader)
 
             print(
-                f"Validation loss: {val_loss} | Average loss: {avg_loss} | Accuracy: {accuracy}"
+                f"Epoch: {epoch} | Train loss: {avg_train_loss:.2f} | Val loss: {avg_val_loss:.2f}"
             )
+
+            train_losses.append(avg_train_loss)
+            val_losses.append(avg_val_loss)
+
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                torch.save(model.state_dict(), self.run_dir / "best_model.pth")
+                print(f"New best model with val loss {avg_val_loss:.2f} saved")
+
+        self.plot(
+            output_path=self.run_dir / "loss_plot.png",
+            train_losses=train_losses,
+            val_losses=val_losses,
+        )
 
 
 if __name__ == "__main__":

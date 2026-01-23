@@ -9,6 +9,7 @@ PREDICTION_DIR = Path("data/predictions")
 INPUT_DIR = Path("data/inputs")
 EXPORT_DIR = Path("data/exports")
 PLACEHOLDER_EXPORT_DIR = Path("data/placeholders/exports")
+RUN_DIR = Path("data/runs")
 
 
 class MapLoader:

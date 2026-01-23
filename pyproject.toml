@@ -8,6 +8,7 @@ dependencies = [
     "anyascii>=0.3.3",
     "colorama>=0.4.6",
     "librosa>=0.11.0",
+    "matplotlib>=3.10.8",
     "numpy>=2.3.5",
     "pydantic>=2.12.5",
     "requests>=2.32.5",
