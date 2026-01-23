@@ -3,7 +3,7 @@ from pathlib import Path
 
 import torch
 
-from small_beats_model.loader import PREDICTION_DIR
+from small_beats_model.loader import MODEL_PATH, PREDICTION_DIR
 from small_beats_model.model import SmallBeatsNet
 from small_beats_model.models import DiffFile, DiffNote
 from small_beats_model.preprocessing import (
@@ -12,7 +12,6 @@ from small_beats_model.preprocessing import (
     AudioProcessor,
     LabelProcessor,
 )
-from small_beats_model.train import MODEL_PATH
 
 device = "mps" if torch.mps.is_available() else "cpu"
 
@@ -21,18 +20,17 @@ class BeatGenerator:
     def __init__(self):
         self.step_per_beat = STEPS_PER_BEAT
         self.prediction_dir = PREDICTION_DIR
-        self.model_path = MODEL_PATH
         self.num_colors = NUM_COLORS
-
-        self.prediction_dir.mkdir(parents=True, exist_ok=True)
-
         self.audio_processor = AudioProcessor()
         self.label_processor = LabelProcessor()
         self.model = SmallBeatsNet()
-        state_dict = torch.load(self.model_path, map_location=device)
+
+        state_dict = torch.load(MODEL_PATH, map_location=device)
         self.model.load_state_dict(state_dict)
         self.model.to(device)
         self.model.eval()
+
+        self.prediction_dir.mkdir(parents=True, exist_ok=True)
 
     def infer(self, audio_path: Path):
         audio_tensor = self.audio_processor.process_audio(audio_path)
