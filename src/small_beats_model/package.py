@@ -159,6 +159,8 @@ class Packager:
                 )
             )
 
+        return map_export_dir
+
 
 if __name__ == "__main__":
     packager = Packager()

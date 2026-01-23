@@ -71,7 +71,7 @@ class Deployer:
         print(f"Connected to '{model}'")
         return model
 
-    def push_to_quest(self, exported_map_dir: Path):
+    def verify(self):
         device = self.get_device()
         if device is None:
             sys.exit(1)
@@ -79,6 +79,11 @@ class Deployer:
         model = self.verify_model(device)
         if model is None:
             sys.exit(1)
+
+        return device, model
+
+    def push_to_quest(self, exported_map_dir: Path):
+        device, _ = self.verify()
 
         quest_map_path = self.quest_mod_dir / exported_map_dir.name
         print(f"Pushing '{exported_map_dir.name}' to Quest...")

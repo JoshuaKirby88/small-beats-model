@@ -13,10 +13,10 @@ class BeatGeneratorRunner:
 
     def run(self, audio_path: Path, output_dir_name: str):
         predictions = self.beat_generator.infer(audio_path)
-        output_path = self.beat_generator.save(
+        output_dir = self.beat_generator.save(
             output_dir_name=output_dir_name, predictions=predictions
         )
-        print(f"Saved to {output_path}")
+        print(f"Saved to {output_dir}")
 
     def run_on_scraped(self, max: int):
         for i, (info_file, _, map_id) in enumerate(self.loader.iter_scraped()):
