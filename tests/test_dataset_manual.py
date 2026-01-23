@@ -1,5 +1,5 @@
-from small_beats_model.dataset import TARGET_FRAMES, WINDOW_BEATS, BeatsDataset
-from small_beats_model.preprocessing import N_MFCC
+from small_beats_model.dataset import BeatsDataset
+from small_beats_model.preprocessing import N_MFCC, TARGET_FRAMES, WINDOW_BEATS
 
 
 class DatasetTester:
