@@ -73,6 +73,6 @@ class Visualizer:
 if __name__ == "__main__":
     visualizer = Visualizer()
     visualizer.visualize(
-        audio_path=Path(""),
-        diff_path=Path(""),
+        audio_path=Path("data/exports/89qcn (b-no-revenge - Joshua Kirby)/song.egg"),
+        diff_path=Path("data/predictions/Bのリベンジ/Expert.dat"),
     )

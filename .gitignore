@@ -17,3 +17,5 @@ models/
 
 # Output
 predictions/
+
+.DS_Store
