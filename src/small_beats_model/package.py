@@ -3,7 +3,10 @@ import random
 import shutil
 import string
 import subprocess
+import unicodedata
 from pathlib import Path
+
+from anyascii import anyascii
 
 from small_beats_model.loader import (
     EXPORT_DIR,
@@ -28,6 +31,11 @@ class Packager:
     def generate_id(self, length: int):
         chars = string.ascii_lowercase + string.digits
         return "".join(random.choices(chars, k=length))
+
+    def sanitize_path(self, path: str):
+        normalized = unicodedata.normalize("NFC", path)
+        ascii = anyascii(normalized)
+        return ascii.strip()
 
     def generate_diff_set(self):
         return InfoDiffSet(
@@ -116,7 +124,10 @@ class Packager:
         author_name: str,
     ):
         id = self.generate_id(5)
-        map_export_dir = self.export_dir / f"{id} ({song_name} - {author_name})"
+        map_export_dir = (
+            self.export_dir
+            / f"{id} ({self.sanitize_path(song_name)} - {self.sanitize_path(author_name)})"
+        )
         map_export_dir.mkdir(parents=True, exist_ok=True)
 
         audio_export_path = map_export_dir / "song.egg"
@@ -133,12 +144,20 @@ class Packager:
             cover_file_name=cover_export_path.name,
             bpm=bpm,
         )
-        with open(map_export_dir / "Info.dat", "w") as f:
-            f.write(json.dumps(info_file.model_dump(by_alias=True), indent=2))
+        with open(map_export_dir / "Info.dat", "w", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    info_file.model_dump(by_alias=True), indent=2, ensure_ascii=False
+                )
+            )
 
         diff_file = self.loader.load_diff_map(diff_path)
-        with open(map_export_dir / "Expert.dat", "w") as f:
-            f.write(json.dumps(diff_file.model_dump(by_alias=True), indent=2))
+        with open(map_export_dir / "Expert.dat", "w", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    diff_file.model_dump(by_alias=True), indent=2, ensure_ascii=False
+                )
+            )
 
 
 if __name__ == "__main__":
