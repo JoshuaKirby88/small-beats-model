@@ -40,7 +40,7 @@ class DatasetBuilder:
                     njOffset=diff_map.noteJumpStartBeatOffset,
                     difficulty=diff_map.difficulty,
                     song_duration_s=audio_duration_s,
-                    total_beats=len(diff_file.notes),
+                    total_beats=total_beats,
                 )
 
                 audio_tensor_path = feature_dir / "features.pt"

@@ -112,4 +112,4 @@ class DatasetMeta(BaseModel):
     njOffset: float
     difficulty: str
     song_duration_s: float
-    total_beats: int
+    total_beats: float
