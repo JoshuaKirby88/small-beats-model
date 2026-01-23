@@ -45,6 +45,7 @@ class BeatGenerator:
             normalized_audio_tensor = self.audio_processor.normalize_audio_tensor(
                 audio_tensor, bpm, window_i
             )
+            normalized_audio_tensor = normalized_audio_tensor.unsqueeze(0).to(device)
 
             logits = self.model(normalized_audio_tensor)
             predictions = torch.argmax(logits, dim=2).squeeze(0).tolist()
