@@ -11,9 +11,10 @@ from small_beats_model.preprocessing import (
 
 HIDDEN_DIMS = 256
 KERNEL_SIZE = 3
-PADDING = 1
+PADDING = (KERNEL_SIZE - 1) // 2
 OUTPUT_STEPS = WINDOW_BEATS * STEPS_PER_BEAT * NUM_COLORS
 NUM_LAYERS = 2
+DROPOUT = 0.3
 
 
 class SmallBeatsNet(nn.Module):
@@ -26,6 +27,7 @@ class SmallBeatsNet(nn.Module):
         self.output_steps = OUTPUT_STEPS
         self.num_layers = NUM_LAYERS
         self.n_mfcc = N_MFCC
+        self.dropout = DROPOUT
 
         self.encoder = nn.Sequential(
             nn.Conv1d(
@@ -34,6 +36,7 @@ class SmallBeatsNet(nn.Module):
                 kernel_size=self.kernel_size,
                 padding=self.padding,
             ),
+            nn.Dropout(p=self.dropout),
             nn.BatchNorm1d(num_features=self.hidden_dims),
             nn.ReLU(),
         )
@@ -46,6 +49,7 @@ class SmallBeatsNet(nn.Module):
             num_layers=self.num_layers,
             batch_first=True,
             bidirectional=True,
+            dropout=self.dropout,
         )
 
         self.head = nn.Linear(in_features=self.hidden_dims * 2, out_features=VOCAB_SIZE)

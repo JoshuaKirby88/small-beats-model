@@ -22,7 +22,7 @@ class BeatSaverEDA:
 
         return last_time_s, nps, layer_counts
 
-    def analyze_beats_per_note(self, info_file: InfoFile, diff_file: DiffFile):
+    def analyze_notes(self, diff_file: DiffFile):
         violating_notes = 0
         times = set(n.time for n in diff_file.notes)
         for time in times:
@@ -35,25 +35,27 @@ class BeatSaverEDA:
 
     def run(self):
         total_violating_notes = 0
-        total_total = 0
+        all_total_notes = 0
+        total_diffs = 0
 
         for info_file, diff_tuples, map_id in self.loader.iter_scraped():
             print(f"Processing: {map_id}")
 
             for _, diff_file in diff_tuples:
-                print("Diff file")
-                violating_notes, total = self.analyze_beats_per_note(
-                    info_file, diff_file
-                )
+                total_diffs += 1
+                violating_notes, total_notes = self.analyze_notes(diff_file)
                 total_violating_notes += violating_notes
-                total_total += total
+                all_total_notes += total_notes
 
                 stats = self.analyze_difficulty(info_file, diff_file)
-                # print(
-                #     f"[{info_file.songName}] NPS: {stats[1]:.2f} | Duration: {stats[0]:.0f}s | Layer Counts: {stats[2]}"
-                # )
+                print(
+                    f"[{info_file.songName}] NPS: {stats[1]:.2f} | Duration: {stats[0]:.0f}s | Layer Counts: {stats[2]}"
+                )
 
-        print(total_violating_notes / total_total)
+        print(f"Total diffs: {total_diffs}")
+        print(
+            f"Total violating notes: [{total_violating_notes} / {all_total_notes}] {round((total_violating_notes / all_total_notes) * 100, 2)}%)"
+        )
 
 
 if __name__ == "__main__":

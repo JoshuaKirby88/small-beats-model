@@ -15,9 +15,11 @@ from small_beats_model.preprocessing import VOCAB_SIZE
 
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
-EPOCHS = 200
+EPOCHS = 50
 TRAIN_VAL_SPLIT = 0.8
-LOSS_ROUNDING = 5
+WEIGHT_DECAY = 1e-4
+
+LOSS_LOG_ROUNDING = 2
 
 app = typer.Typer()
 device = torch.device("mps" if torch.mps.is_available() else "cpu")
@@ -30,7 +32,8 @@ class Train:
         self.epochs = EPOCHS
         self.train_val_split = TRAIN_VAL_SPLIT
         self.vocab_size = VOCAB_SIZE
-        self.loss_rounding = LOSS_ROUNDING
+        self.loss_log_rounding = LOSS_LOG_ROUNDING
+        self.weight_decay = WEIGHT_DECAY
         self.overfit_mode = overfit_mode
 
         dataset = BeatsDataset()
@@ -104,10 +107,12 @@ class Train:
                 writer.writerow(
                     [
                         epoch,
-                        round(t_loss, self.loss_rounding),
-                        round(v_loss, self.loss_rounding),
+                        round(t_loss, self.loss_log_rounding),
+                        round(v_loss, self.loss_log_rounding),
                     ]
                 )
+
+        print(f"Training run saved to {self.run_dir}")
 
     def train(self):
         weights = self.get_weights()
@@ -116,7 +121,9 @@ class Train:
         model = SmallBeatsNet()
         model.to(device)
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
+        )
         criterion = torch.nn.CrossEntropyLoss(weight=weights)
 
         train_losses: list[float] = []
@@ -160,7 +167,7 @@ class Train:
             avg_val_loss = total_val_loss / len(val_loader)
 
             print(
-                f"Epoch: {epoch} | Train loss: {round(avg_train_loss, self.loss_rounding)} | Val loss: {round(avg_val_loss, self.loss_rounding)}"
+                f"Epoch: {epoch} | Train loss: {round(avg_train_loss, self.loss_log_rounding)} | Val loss: {round(avg_val_loss, self.loss_log_rounding)}"
             )
 
             train_losses.append(avg_train_loss)
@@ -170,7 +177,7 @@ class Train:
                 best_val_loss = avg_val_loss
                 torch.save(model.state_dict(), self.run_dir / "best_model.pth")
                 print(
-                    f"New best model with val loss {round(avg_val_loss, self.loss_rounding)} saved"
+                    f"New best model with val loss {round(avg_val_loss, self.loss_log_rounding)} saved"
                 )
 
         self.plot(

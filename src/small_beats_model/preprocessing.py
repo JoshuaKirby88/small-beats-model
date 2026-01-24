@@ -3,10 +3,11 @@ from math import ceil
 from pathlib import Path
 
 import librosa
+import numpy as np
 import torch
 import torch.nn.functional as F
 
-from small_beats_model.models import DiffNote, VocabKey
+from small_beats_model.models import DiffNote, InfoFile, VocabKey
 
 STEPS_PER_BEAT = 4
 NUM_COLORS = 2
@@ -37,14 +38,23 @@ class AudioProcessor:
         self.fps = FPS
         self.target_frames = TARGET_FRAMES
 
-    def process_audio(self, audio_path: Path):
-        (audio_array, _) = librosa.load(audio_path, sr=self.sample_rate)
+    def process_audio(self, audio_path: Path, song_offset=0.0):
+        (audio_array, _) = librosa.load(
+            audio_path, sr=self.sample_rate, offset=max(0, song_offset)
+        )
+
+        if song_offset < 0:
+            silence_s = abs(song_offset)
+            silence_samples = int(silence_s * self.sample_rate)
+            audio_array = np.pad(audio_array, (silence_samples, 0), mode="constant")
+
         mfcc = librosa.feature.mfcc(
             y=audio_array,
             sr=self.sample_rate,
             n_mfcc=self.n_mfcc,
             hop_length=self.hop_length,
         )
+
         tensor = torch.tensor(mfcc)
         return tensor
 

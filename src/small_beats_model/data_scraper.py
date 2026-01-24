@@ -25,8 +25,8 @@ TEMP_DATA_DIR = Path("data/temp")
 BEATSAVER_API_URL = "https://api.beatsaver.com"
 SORT = "Rating"
 PAGE_SIZE = 20
-TOTAL_MAPS = 100
-REQUEST_SLEEP_S = 0.5
+TOTAL_MAPS = 1000
+REQUEST_SLEEP_S = 0.1
 
 CHARACTERISTIC_FILTERS = ["Standard"]
 
@@ -35,13 +35,15 @@ class BeatSaverScraper:
     def __init__(self):
         self.output_dir = SCRAPED_DATA_DIR
         self.temp_data_dir = TEMP_DATA_DIR
-
         self.api_url = BEATSAVER_API_URL
         self.sort = SORT
         self.page_size = PAGE_SIZE
         self.total_maps = TOTAL_MAPS
-
         self.characteristic_filters = CHARACTERISTIC_FILTERS
+        self.request_sleep_s = REQUEST_SLEEP_S
+        self.num_cols = NUM_COLS
+        self.num_rows = NUM_ROWS
+        self.num_colors = NUM_COLORS
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.temp_data_dir.mkdir(parents=True, exist_ok=True)
@@ -107,9 +109,9 @@ class BeatSaverScraper:
                 if is_diff_valid:
                     diff_file = DiffFile.model_validate(raw_diff_file)
                     is_notes_valid = all(
-                        note.lineLayer in range(NUM_ROWS)
-                        and note.lineIndex in range(NUM_COLS)
-                        and note.type in range(NUM_COLORS)
+                        note.lineLayer in range(self.num_rows)
+                        and note.lineIndex in range(self.num_cols)
+                        and note.type in range(self.num_colors)
                         for note in diff_file.notes
                     )
                     if is_notes_valid:
@@ -124,18 +126,22 @@ class BeatSaverScraper:
     def run(self):
         docs: list[BeatSaverDoc] = []
 
-        for start in range(0, self.total_maps, self.page_size):
-            if start > 0:
-                time.sleep(REQUEST_SLEEP_S)
-            page = start // self.page_size
+        for i in range(0, self.total_maps, self.page_size):
+            if i > 0:
+                time.sleep(self.request_sleep_s)
+            page = i // self.page_size
             response = self.fetch(page=page)
             docs.extend(response.docs)
+            print(
+                f"Fetch: [{i} / {self.total_maps}] {round(i * 100 / self.total_maps, 2)}%"
+            )
 
         for i, doc in enumerate(docs):
             if i > 0:
-                time.sleep(REQUEST_SLEEP_S)
+                time.sleep(self.request_sleep_s)
             unzip_dir = self.download_map(doc)
             self.filter_map(unzip_dir)
+            print(f"Download: [{i} / {len(docs)}] {round(i * 100 / len(docs), 2)}%")
 
 
 if __name__ == "__main__":

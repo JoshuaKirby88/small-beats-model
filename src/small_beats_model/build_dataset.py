@@ -20,9 +20,13 @@ class DatasetBuilder:
         self.dataset_dir.mkdir(parents=True, exist_ok=True)
 
     def build(self):
-        for info_file, diff_tuples, map_id in self.loader.iter_scraped():
+        for i, (info_file, diff_tuples, map_id) in enumerate(
+            self.loader.iter_scraped()
+        ):
             audio_path = self.scraped_data_dir / map_id / info_file.songFilename
-            audio_tensor = self.audio_processor.process_audio(audio_path)
+            audio_tensor = self.audio_processor.process_audio(
+                song_offset=info_file.songTimeOffset, audio_path=audio_path
+            )
 
             for diff_map, diff_file in diff_tuples:
                 audio_duration_s = self.audio_processor.get_duration_s(audio_tensor)
@@ -50,6 +54,9 @@ class DatasetBuilder:
                 meta_path = feature_dir / "meta.json"
                 with open(meta_path, "w") as f:
                     f.write(json.dumps(meta.model_dump()))
+
+            if i % 10 == 0:
+                print(f"Progress: {i + 1}")
 
 
 if __name__ == "__main__":
