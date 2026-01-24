@@ -12,6 +12,7 @@ from small_beats_model.dataset import BeatsDataset
 from small_beats_model.loader import RUN_DIR
 from small_beats_model.model import SmallBeatsNet
 from small_beats_model.preprocessing import VOCAB_SIZE
+from src.small_beats_model.utils import device_type
 
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
@@ -22,7 +23,7 @@ WEIGHT_DECAY = 1e-4
 LOSS_LOG_ROUNDING = 2
 
 app = typer.Typer()
-device = torch.device("mps" if torch.mps.is_available() else "cpu")
+device = torch.device(device_type)
 
 
 class Train:

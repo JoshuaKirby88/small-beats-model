@@ -12,8 +12,7 @@ from small_beats_model.preprocessing import (
     AudioProcessor,
     LabelProcessor,
 )
-
-device = "mps" if torch.mps.is_available() else "cpu"
+from src.small_beats_model.utils import device_type
 
 
 class BeatGenerator:
@@ -21,13 +20,14 @@ class BeatGenerator:
         self.step_per_beat = STEPS_PER_BEAT
         self.prediction_dir = PREDICTION_DIR
         self.num_colors = NUM_COLORS
+        self.device_type = device_type
         self.audio_processor = AudioProcessor()
         self.label_processor = LabelProcessor()
         self.model = SmallBeatsNet()
 
-        state_dict = torch.load(MODEL_PATH, map_location=device)
+        state_dict = torch.load(MODEL_PATH, map_location=self.device_type)
         self.model.load_state_dict(state_dict)
-        self.model.to(device)
+        self.model.to(self.device_type)
         self.model.eval()
 
         self.prediction_dir.mkdir(parents=True, exist_ok=True)
@@ -43,7 +43,9 @@ class BeatGenerator:
             normalized_audio_tensor = self.audio_processor.normalize_audio_tensor(
                 audio_tensor, bpm, window_i
             )
-            normalized_audio_tensor = normalized_audio_tensor.unsqueeze(0).to(device)
+            normalized_audio_tensor = normalized_audio_tensor.unsqueeze(0).to(
+                self.device_type
+            )
 
             logits = self.model(normalized_audio_tensor)
             predictions = torch.argmax(logits, dim=2).squeeze(0).tolist()
