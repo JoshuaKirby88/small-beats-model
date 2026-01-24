@@ -26,7 +26,10 @@ class Orchestrator:
     ):
         self.deployer.verify()
 
+        print("Generating...")
         predictions = self.generator.infer(audio_path)
+
+        print("Saving...")
         output_dir = self.generator.save(
             output_dir_name=song_name, predictions=predictions
         )

@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from small_beats_model.models import DiffNote, InfoFile, VocabKey
+from small_beats_model.models import DiffNote, VocabKey
 
 STEPS_PER_BEAT = 4
 NUM_COLORS = 2
@@ -66,7 +66,7 @@ class AudioProcessor:
         n_windows = math.ceil(total_frames / frames_per_window)
         return n_windows
 
-    def normalize_audio_tensor(
+    def normalize_and_slice_audio_tensor(
         self, audio_tensor: torch.Tensor, bpm: float, window_i: int
     ):
         s_per_beat = 60 / bpm
@@ -147,7 +147,9 @@ class LabelProcessor:
     def get_id_to_key(self) -> dict[int, VocabKey]:
         return {v: k for k, v in self.vocab.items()}
 
-    def normalize_label_tensor(self, label_pair_tensor: torch.Tensor, window_i: int):
+    def normalize_and_slice_label_tensor(
+        self, label_pair_tensor: torch.Tensor, window_i: int
+    ):
         label_start_frame = window_i * self.window_beats * self.steps_per_beat
         label_end_frame = label_start_frame + self.window_beats * self.steps_per_beat
         label_pair_slice = label_pair_tensor[label_start_frame:label_end_frame]

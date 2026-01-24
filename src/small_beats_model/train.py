@@ -12,7 +12,7 @@ from small_beats_model.dataset import BeatsDataset
 from small_beats_model.loader import RUN_DIR
 from small_beats_model.model import SmallBeatsNet
 from small_beats_model.preprocessing import VOCAB_SIZE
-from src.small_beats_model.utils import device_type
+from small_beats_model.utils import device_type
 
 BATCH_SIZE = 32
 LEARNING_RATE = 3e-4
@@ -23,23 +23,16 @@ WEIGHT_DECAY = 1e-5
 LOSS_LOG_ROUNDING = 2
 
 app = typer.Typer()
-device = torch.device(device_type)
 
 
 class Train:
     def __init__(self, overfit_mode=False):
-        self.batch_size = BATCH_SIZE
-        self.learning_rate = LEARNING_RATE
-        self.epochs = EPOCHS
-        self.train_val_split = TRAIN_VAL_SPLIT
-        self.vocab_size = VOCAB_SIZE
-        self.loss_log_rounding = LOSS_LOG_ROUNDING
-        self.weight_decay = WEIGHT_DECAY
         self.overfit_mode = overfit_mode
+        self.device = torch.device(device_type)
 
         dataset = BeatsDataset()
         if self.overfit_mode:
-            self.dataset = cast(BeatsDataset, Subset(dataset, [0] * self.batch_size))
+            self.dataset = cast(BeatsDataset, Subset(dataset, [0] * BATCH_SIZE))
         else:
             self.dataset = dataset
 
@@ -50,43 +43,85 @@ class Train:
         if self.overfit_mode:
             return None
         else:
-            token_counts = torch.zeros(self.vocab_size)
-            for _, targets in self.dataset:
+            token_counts = torch.zeros(VOCAB_SIZE)
+            for _, _, _, targets in self.dataset:
                 for token in targets:
                     token_counts[token] += 1
             token_counts = token_counts.clamp(min=1)
             total = token_counts.sum()
-            weights = total / (token_counts * self.vocab_size)
+            weights = total / (token_counts * VOCAB_SIZE)
             weights = torch.clamp(weights, max=10.0, min=0.1)
-            return weights.to(device)
+            return weights.to(self.device)
 
     def load_datasets(self):
-        dataset: BeatsDataset = (
-            cast(BeatsDataset, Subset(self.dataset, [0] * self.batch_size))
-            if self.overfit_mode
-            else self.dataset
-        )
         shuffle = not self.overfit_mode
 
-        train_size = int(self.train_val_split * len(dataset))
-        val_size = len(dataset) - train_size
+        train_size = int(TRAIN_VAL_SPLIT * len(self.dataset))
+        val_size = len(self.dataset) - train_size
         train_dataset, val_dataset = torch.utils.data.random_split(
-            dataset, [train_size, val_size]
+            self.dataset, [train_size, val_size]
         )
         train_loader = DataLoader(
             train_dataset,
             shuffle=shuffle,
             num_workers=0,
-            batch_size=self.batch_size,
+            batch_size=BATCH_SIZE,
         )
         val_loader = DataLoader(
             val_dataset,
             shuffle=shuffle,
             num_workers=0,
-            batch_size=self.batch_size,
+            batch_size=BATCH_SIZE,
         )
 
         return train_loader, val_loader
+
+    def train_loop(
+        self,
+        model: SmallBeatsNet,
+        loader: DataLoader,
+        optimizer: torch.optim.Adam,
+        criterion: torch.nn.CrossEntropyLoss,
+    ):
+        model.train()
+        total_loss = 0
+
+        for audio, prev_tokens, color_ids, targets in loader:
+            audio: torch.Tensor = audio.to(self.device)
+            prev_tokens: torch.Tensor = prev_tokens.to(self.device)
+            color_ids: torch.Tensor = color_ids.to(self.device)
+            targets: torch.Tensor = targets.to(self.device)
+
+            optimizer.zero_grad()
+            predictions, _ = model(audio, prev_tokens, color_ids)
+            loss: torch.Tensor = criterion(predictions.permute(0, 2, 1), targets)
+            loss.backward()
+            total_loss += loss.item()
+            optimizer.step()
+
+        return total_loss
+
+    def val_loop(
+        self,
+        model: SmallBeatsNet,
+        loader: DataLoader,
+        criterion: torch.nn.CrossEntropyLoss,
+    ):
+        model.eval()
+        total_loss = 0
+
+        with torch.no_grad():
+            for audio, prev_tokens, color_ids, targets in loader:
+                audio: torch.Tensor = audio.to(self.device)
+                prev_tokens: torch.Tensor = prev_tokens.to(self.device)
+                color_ids: torch.Tensor = color_ids.to(self.device)
+                targets: torch.Tensor = targets.to(self.device)
+
+                predictions, _ = model(audio, prev_tokens, color_ids)
+                loss: torch.Tensor = criterion(predictions.permute(0, 2, 1), targets)
+                total_loss += loss.item()
+
+        return total_loss
 
     def plot(
         self, output_path: Path, train_losses: list[float], val_losses: list[float]
@@ -108,8 +143,8 @@ class Train:
                 writer.writerow(
                     [
                         epoch,
-                        round(t_loss, self.loss_log_rounding),
-                        round(v_loss, self.loss_log_rounding),
+                        round(t_loss, LOSS_LOG_ROUNDING),
+                        round(v_loss, LOSS_LOG_ROUNDING),
                     ]
                 )
 
@@ -120,10 +155,10 @@ class Train:
         train_loader, val_loader = self.load_datasets()
 
         model = SmallBeatsNet()
-        model.to(device)
+        model.to(self.device)
 
         optimizer = torch.optim.Adam(
-            model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
+            model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY
         )
         criterion = torch.nn.CrossEntropyLoss(weight=weights)
 
@@ -131,44 +166,22 @@ class Train:
         val_losses: list[float] = []
         best_val_loss = float("inf")
 
-        for epoch in range(self.epochs):
-            model.train()
-
-            total_train_loss = 0
-            for audio, targets in train_loader:
-                audio: torch.Tensor = audio.to(device)
-                targets: torch.Tensor = targets.to(device)
-                optimizer.zero_grad()
-                predictions = model(audio)
-                train_loss: torch.Tensor = criterion(
-                    predictions.permute(0, 2, 1), targets
-                )
-                train_loss.backward()
-                optimizer.step()
-                total_train_loss += train_loss.item()
-
-            model.eval()
-
-            total_val_loss = 0
-            correct = 0
-            total = 0
-
-            with torch.no_grad():
-                for audio, targets in val_loader:
-                    audio, targets = audio.to(device), targets.to(device)
-                    predictions = model(audio)
-                    val_loss: torch.Tensor = criterion(
-                        predictions.permute(0, 2, 1), targets
-                    )
-                    total_val_loss += val_loss.item()
-                    correct += (predictions.argmax(dim=2) == targets).sum().item()
-                    total += targets.numel()
+        for epoch in range(EPOCHS):
+            total_train_loss = self.train_loop(
+                model=model,
+                loader=train_loader,
+                optimizer=optimizer,
+                criterion=criterion,
+            )
+            total_val_loss = self.val_loop(
+                model=model, loader=val_loader, criterion=criterion
+            )
 
             avg_train_loss = total_train_loss / len(train_loader)
             avg_val_loss = total_val_loss / len(val_loader)
 
             print(
-                f"Epoch: {epoch} | Train loss: {round(avg_train_loss, self.loss_log_rounding)} | Val loss: {round(avg_val_loss, self.loss_log_rounding)}"
+                f"Epoch: {epoch} | Train loss: {round(avg_train_loss, LOSS_LOG_ROUNDING)} | Val loss: {round(avg_val_loss, LOSS_LOG_ROUNDING)}"
             )
 
             train_losses.append(avg_train_loss)
@@ -176,9 +189,9 @@ class Train:
 
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
-                torch.save(model.state_dict(), self.run_dir / "best_model.pth")
+                torch.save(obj=model.state_dict(), f=self.run_dir / "best_model.pth")
                 print(
-                    f"New best model with val loss {round(avg_val_loss, self.loss_log_rounding)} saved"
+                    f"New best model with val loss {round(avg_val_loss, LOSS_LOG_ROUNDING)} saved"
                 )
 
         self.plot(
