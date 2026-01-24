@@ -14,7 +14,7 @@ KERNEL_SIZE = 3
 PADDING = (KERNEL_SIZE - 1) // 2
 OUTPUT_STEPS = WINDOW_BEATS * STEPS_PER_BEAT * NUM_COLORS
 NUM_LAYERS = 3
-DROPOUT = 0.3
+DROPOUT = 0.1
 
 
 class SmallBeatsNet(nn.Module):
@@ -28,6 +28,7 @@ class SmallBeatsNet(nn.Module):
         self.num_layers = NUM_LAYERS
         self.n_mfcc = N_MFCC
         self.dropout = DROPOUT
+        self.vocab_size = VOCAB_SIZE
 
         self.encoder = nn.Sequential(
             nn.Conv1d(
@@ -52,7 +53,12 @@ class SmallBeatsNet(nn.Module):
             dropout=self.dropout,
         )
 
-        self.head = nn.Linear(in_features=self.hidden_dims * 2, out_features=VOCAB_SIZE)
+        self.head = nn.Sequential(
+            nn.Linear(in_features=self.hidden_dims * 2, out_features=self.hidden_dims),
+            nn.ReLU(),
+            nn.Dropout(self.dropout),
+            nn.Linear(in_features=self.hidden_dims, out_features=self.vocab_size),
+        )
 
     def forward(self, x):
         x = self.encoder(x)

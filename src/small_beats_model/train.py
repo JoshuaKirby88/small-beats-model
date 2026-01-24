@@ -15,10 +15,10 @@ from small_beats_model.preprocessing import VOCAB_SIZE
 from src.small_beats_model.utils import device_type
 
 BATCH_SIZE = 32
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 3e-4
 EPOCHS = 50
 TRAIN_VAL_SPLIT = 0.8
-WEIGHT_DECAY = 1e-4
+WEIGHT_DECAY = 1e-5
 
 LOSS_LOG_ROUNDING = 2
 
