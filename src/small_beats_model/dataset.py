@@ -1,3 +1,4 @@
+import random
 from pathlib import Path
 
 import torch
@@ -14,16 +15,36 @@ from small_beats_model.vocab import EMPTY_TOKEN
 
 
 class BeatsDataset(Dataset):
-    def __init__(self):
+    def __init__(self, allowed_map_ids: list[str] | None = None):
         self.indices: list[tuple[Path, int]] = []
         self.loader = MapLoader()
         self.audio_processor = AudioProcessor()
         self.label_processor = LabelProcessor()
 
-        for meta, map_id_diff in self.loader.iter_processed_meta():
+        allowed_map_id_set = (
+            {map_id for map_id in allowed_map_ids}
+            if allowed_map_ids is not None
+            else None
+        )
+        for meta, map_id, map_id_diff in self.loader.iter_processed_meta():
+            if allowed_map_id_set is not None and map_id not in allowed_map_id_set:
+                continue
             num_windows = int(meta.total_beats / WINDOW_BEATS)
             map_dir = DATASET_DIR / map_id_diff
             self.indices.extend(map(lambda i: (map_dir, i), range(num_windows)))
+
+    @staticmethod
+    def split(train_split: float, shuffle: bool, seed: int):
+        loader = MapLoader()
+        map_ids = list({map_id for _, map_id, _ in loader.iter_processed_meta()})
+        map_ids.sort()
+        random.seed(seed)
+        if shuffle:
+            random.shuffle(map_ids)
+        train_size = int(len(map_ids) * train_split)
+        train_map_ids = map_ids[:train_size]
+        val_map_ids = map_ids[train_size:]
+        return train_map_ids, val_map_ids
 
     def __len__(self):
         return len(self.indices)

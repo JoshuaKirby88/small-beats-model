@@ -7,7 +7,6 @@ from small_beats_model.loader import MODEL_PATH, PREDICTION_DIR
 from small_beats_model.model import SmallBeatsNet
 from small_beats_model.models import DiffFile, DiffNote
 from small_beats_model.preprocessing import (
-    NUM_COLORS,
     STEPS_PER_BEAT,
     AudioProcessor,
     LabelProcessor,

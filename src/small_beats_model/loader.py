@@ -65,7 +65,8 @@ class MapLoader:
                 continue
             meta = self.load_meta(map_dir)
             map_id_diff = map_dir.name
-            yield (meta, map_id_diff)
+            map_id = map_id_diff.split("_")[0]
+            yield (meta, map_id, map_id_diff)
 
     def iter_processed_meta_by_map_id(self, map_id: str):
         dirs = [p for p in self.dataset_dir.iterdir() if p.name.startswith(map_id)]

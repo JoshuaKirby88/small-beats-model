@@ -1,12 +1,11 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import cast
 
 import matplotlib.pyplot as plt
 import torch
 import typer
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 
 from small_beats_model.dataset import BeatsDataset
 from small_beats_model.loader import RUN_DIR
@@ -17,7 +16,7 @@ from small_beats_model.vocab import Vocab
 BATCH_SIZE = 32
 LEARNING_RATE = 3e-4
 EPOCHS = 50
-TRAIN_VAL_SPLIT = 0.8
+TRAIN_SPLIT = 0.8
 WEIGHT_DECAY = 1e-3
 
 LOSS_LOG_ROUNDING = 2
@@ -31,46 +30,33 @@ class Train:
         self.device = torch.device(device_type)
         self.vocab = Vocab()
 
-        dataset = BeatsDataset()
-        if self.overfit_mode:
-            self.dataset = cast(BeatsDataset, Subset(dataset, [0] * BATCH_SIZE))
-        else:
-            self.dataset = dataset
-
         self.run_dir = RUN_DIR / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
     def get_weights(self):
-        if self.overfit_mode:
-            return None
-        else:
-            token_counts = torch.zeros(self.vocab.vocab_size)
-            for _, _, targets in self.dataset:
-                for token in targets:
-                    token_counts[token] += 1
-            token_counts = token_counts.clamp(min=1)
-            total = token_counts.sum()
-            weights = total / (token_counts * self.vocab.vocab_size)
-            weights = torch.clamp(weights, max=10.0, min=0.1)
-            return weights.to(self.device)
+        token_counts = torch.zeros(self.vocab.vocab_size)
+        for _, _, targets in BeatsDataset():
+            for token in targets:
+                token_counts[token] += 1
+        token_counts = token_counts.clamp(min=1)
+        total = token_counts.sum()
+        weights = total / (token_counts * self.vocab.vocab_size)
+        weights = torch.clamp(weights, max=10.0, min=0.1)
+        return weights.to(self.device)
 
     def load_datasets(self):
-        shuffle = not self.overfit_mode
-
-        train_size = int(TRAIN_VAL_SPLIT * len(self.dataset))
-        val_size = len(self.dataset) - train_size
-        train_dataset, val_dataset = torch.utils.data.random_split(
-            self.dataset, [train_size, val_size]
+        train_map_ids, val_map_ids = BeatsDataset.split(
+            train_split=TRAIN_SPLIT, shuffle=not self.overfit_mode, seed=42
         )
+        train_dataset = BeatsDataset(allowed_map_ids=train_map_ids)
+        val_dataset = BeatsDataset(allowed_map_ids=val_map_ids)
         train_loader = DataLoader(
             train_dataset,
-            shuffle=shuffle,
             num_workers=0,
             batch_size=BATCH_SIZE,
         )
         val_loader = DataLoader(
             val_dataset,
-            shuffle=shuffle,
             num_workers=0,
             batch_size=BATCH_SIZE,
         )
