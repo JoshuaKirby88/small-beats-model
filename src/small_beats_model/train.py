@@ -13,13 +13,15 @@ from small_beats_model.model import SmallBeatsNet
 from small_beats_model.utils import device_type
 from small_beats_model.vocab import Vocab
 
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 LEARNING_RATE = 3e-4
 EPOCHS = 50
 TRAIN_SPLIT = 0.8
 WEIGHT_DECAY = 1e-3
 SCHEDULE_FACTOR = 0.5
 SCHEDULE_PATIENCE = 5
+CLASS_WEIGHT_CLAMP_MAX = 20
+CLASS_WEIGHT_CLAMP_MIN = 0.001
 
 LOSS_LOG_ROUNDING = 2
 
@@ -35,7 +37,7 @@ class Train:
         self.run_dir = RUN_DIR / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
-    def get_weights(self):
+    def get_class_weights(self):
         token_counts = torch.zeros(self.vocab.vocab_size)
         for _, _, targets in BeatsDataset():
             for token in targets:
@@ -43,7 +45,9 @@ class Train:
         token_counts = token_counts.clamp(min=1)
         total = token_counts.sum()
         weights = total / (token_counts * self.vocab.vocab_size)
-        weights = torch.clamp(weights, max=10.0, min=0.1)
+        weights = torch.clamp(
+            weights, max=CLASS_WEIGHT_CLAMP_MAX, min=CLASS_WEIGHT_CLAMP_MIN
+        )
         return weights.to(self.device)
 
     def load_datasets(self):
@@ -138,7 +142,7 @@ class Train:
         print(f"Training run saved to {self.run_dir}")
 
     def train(self):
-        weights = self.get_weights()
+        class_weights = self.get_class_weights()
         train_loader, val_loader = self.load_datasets()
 
         model = SmallBeatsNet()
@@ -150,7 +154,7 @@ class Train:
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode="min", factor=SCHEDULE_FACTOR, patience=SCHEDULE_PATIENCE
         )
-        criterion = torch.nn.CrossEntropyLoss(weight=weights)
+        criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
 
         train_losses: list[float] = []
         val_losses: list[float] = []
