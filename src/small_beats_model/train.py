@@ -18,6 +18,8 @@ LEARNING_RATE = 3e-4
 EPOCHS = 50
 TRAIN_SPLIT = 0.8
 WEIGHT_DECAY = 1e-3
+SCHEDULE_FACTOR = 0.5
+SCHEDULE_PATIENCE = 5
 
 LOSS_LOG_ROUNDING = 2
 
@@ -145,6 +147,9 @@ class Train:
         optimizer = torch.optim.Adam(
             model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY
         )
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode="min", factor=SCHEDULE_FACTOR, patience=SCHEDULE_PATIENCE
+        )
         criterion = torch.nn.CrossEntropyLoss(weight=weights)
 
         train_losses: list[float] = []
@@ -152,18 +157,18 @@ class Train:
         best_val_loss = float("inf")
 
         for epoch in range(EPOCHS):
-            total_train_loss = self.train_loop(
+            train_loss = self.train_loop(
                 model=model,
                 loader=train_loader,
                 optimizer=optimizer,
                 criterion=criterion,
             )
-            total_val_loss = self.val_loop(
+            val_loss = self.val_loop(
                 model=model, loader=val_loader, criterion=criterion
             )
 
-            avg_train_loss = total_train_loss / len(train_loader)
-            avg_val_loss = total_val_loss / len(val_loader)
+            avg_train_loss = train_loss / len(train_loader)
+            avg_val_loss = val_loss / len(val_loader)
 
             print(
                 f"Epoch: {epoch} | Train loss: {round(avg_train_loss, LOSS_LOG_ROUNDING)} | Val loss: {round(avg_val_loss, LOSS_LOG_ROUNDING)}"
@@ -171,6 +176,8 @@ class Train:
 
             train_losses.append(avg_train_loss)
             val_losses.append(avg_val_loss)
+
+            scheduler.step(avg_val_loss)
 
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
