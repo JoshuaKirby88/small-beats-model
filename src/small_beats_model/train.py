@@ -11,8 +11,8 @@ from torch.utils.data import DataLoader, Subset
 from small_beats_model.dataset import BeatsDataset
 from small_beats_model.loader import RUN_DIR
 from small_beats_model.model import SmallBeatsNet
-from small_beats_model.preprocessing import VOCAB_SIZE
 from small_beats_model.utils import device_type
+from small_beats_model.vocab import Vocab
 
 BATCH_SIZE = 32
 LEARNING_RATE = 3e-4
@@ -29,6 +29,7 @@ class Train:
     def __init__(self, overfit_mode=False):
         self.overfit_mode = overfit_mode
         self.device = torch.device(device_type)
+        self.vocab = Vocab()
 
         dataset = BeatsDataset()
         if self.overfit_mode:
@@ -43,13 +44,13 @@ class Train:
         if self.overfit_mode:
             return None
         else:
-            token_counts = torch.zeros(VOCAB_SIZE)
-            for _, _, _, targets in self.dataset:
+            token_counts = torch.zeros(self.vocab.vocab_size)
+            for _, _, targets in self.dataset:
                 for token in targets:
                     token_counts[token] += 1
             token_counts = token_counts.clamp(min=1)
             total = token_counts.sum()
-            weights = total / (token_counts * VOCAB_SIZE)
+            weights = total / (token_counts * self.vocab.vocab_size)
             weights = torch.clamp(weights, max=10.0, min=0.1)
             return weights.to(self.device)
 
@@ -86,14 +87,13 @@ class Train:
         model.train()
         total_loss = 0
 
-        for audio, prev_tokens, color_ids, targets in loader:
+        for audio, prev_tokens, targets in loader:
             audio: torch.Tensor = audio.to(self.device)
             prev_tokens: torch.Tensor = prev_tokens.to(self.device)
-            color_ids: torch.Tensor = color_ids.to(self.device)
             targets: torch.Tensor = targets.to(self.device)
 
             optimizer.zero_grad()
-            predictions, _ = model(audio, prev_tokens, color_ids)
+            predictions, _ = model(audio, prev_tokens)
             loss: torch.Tensor = criterion(predictions.permute(0, 2, 1), targets)
             loss.backward()
             total_loss += loss.item()
@@ -111,13 +111,12 @@ class Train:
         total_loss = 0
 
         with torch.no_grad():
-            for audio, prev_tokens, color_ids, targets in loader:
+            for audio, prev_tokens, targets in loader:
                 audio: torch.Tensor = audio.to(self.device)
                 prev_tokens: torch.Tensor = prev_tokens.to(self.device)
-                color_ids: torch.Tensor = color_ids.to(self.device)
                 targets: torch.Tensor = targets.to(self.device)
 
-                predictions, _ = model(audio, prev_tokens, color_ids)
+                predictions, _ = model(audio, prev_tokens)
                 loss: torch.Tensor = criterion(predictions.permute(0, 2, 1), targets)
                 total_loss += loss.item()
 

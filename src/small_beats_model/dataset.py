@@ -6,11 +6,11 @@ from torch.utils.data import Dataset
 from small_beats_model.build_dataset import DATASET_DIR
 from small_beats_model.loader import MapLoader
 from small_beats_model.preprocessing import (
-    NUM_COLORS,
     WINDOW_BEATS,
     AudioProcessor,
     LabelProcessor,
 )
+from small_beats_model.vocab import EMPTY_TOKEN
 
 
 class BeatsDataset(Dataset):
@@ -34,22 +34,20 @@ class BeatsDataset(Dataset):
         meta = self.loader.load_meta(map_dir)
 
         audio_tensor: torch.Tensor = torch.load(map_dir / "features.pt")
-        normalized_audio_tensor = self.audio_processor.normalize_and_slice_audio_tensor(
+        audio_tensor_slice = self.audio_processor.slice_audio_tensor(
             audio_tensor, meta.bpm, window_i
         )
 
-        label_pair_tensor: torch.Tensor = torch.load(map_dir / "labels.pt")
-        normalized_label_tensor = self.label_processor.normalize_and_slice_label_tensor(
-            label_pair_tensor, window_i
+        label_tensor: torch.Tensor = torch.load(map_dir / "labels.pt")
+        label_tensor_slice = self.label_processor.slice_label_tensor(
+            label_tensor, window_i
         )
 
-        start_token = torch.tensor([0], dtype=torch.long)
-        prev_tokens = torch.cat([start_token, normalized_label_tensor[:-1]])
-        color_ids = torch.arange(len(prev_tokens)) % NUM_COLORS
+        start_token = torch.tensor([EMPTY_TOKEN], dtype=torch.long)
+        prev_tokens = torch.cat([start_token, label_tensor_slice[:-1]])
 
         return (
-            normalized_audio_tensor,
+            audio_tensor_slice,
             prev_tokens,
-            color_ids,
-            normalized_label_tensor,
+            label_tensor_slice,
         )

@@ -11,6 +11,7 @@ EXPORT_DIR = Path("data/exports")
 PLACEHOLDER_EXPORT_DIR = Path("data/placeholders/exports")
 RUN_DIR = Path("data/runs")
 MODEL_PATH = Path("models/best_model.pth")
+VOCAB_PATH = Path("vocabs/vocab.json")
 
 
 class MapLoader:
