@@ -37,7 +37,7 @@ class BeatGenerator:
 
         generated_tokens = []
         current_token = torch.tensor(
-            [EMPTY_TOKEN], device=self.device, dtype=torch.long
+            [[EMPTY_TOKEN]], device=self.device, dtype=torch.long
         )
         hidden = None
 
@@ -60,7 +60,7 @@ class BeatGenerator:
                 probs = torch.softmax(logits[0, 0], dim=0)
                 next_token_index = torch.argmax(probs).item()
                 generated_tokens.append(next_token_index)
-                current_token = torch.tensor([next_token_index], device=self.device)
+                current_token = torch.tensor([[next_token_index]], device=self.device)
 
         return generated_tokens
 
