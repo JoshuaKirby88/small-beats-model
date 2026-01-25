@@ -5,12 +5,12 @@ from small_beats_model.dataset import WINDOW_BEATS
 from small_beats_model.preprocessing import N_MFCC, STEPS_PER_BEAT
 from small_beats_model.vocab import Vocab
 
-HIDDEN_DIMS = 512
+HIDDEN_DIMS = 256
 KERNEL_SIZE = 3
 PADDING = (KERNEL_SIZE - 1) // 2
 OUTPUT_STEPS = WINDOW_BEATS * STEPS_PER_BEAT
-NUM_LAYERS = 3
-DROPOUT = 0.1
+DROPOUT = 0.3
+NUM_LAYERS = 2
 EMBEDDING_DIMS = 64
 
 
