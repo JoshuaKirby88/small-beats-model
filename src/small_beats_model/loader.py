@@ -12,17 +12,13 @@ PLACEHOLDER_EXPORT_DIR = Path("data/placeholders/exports")
 RUN_DIR = Path("data/runs")
 MODEL_PATH = Path("models/best_model.pth")
 VOCAB_PATH = Path("vocabs/vocab.json")
+EVAL_DIR = Path("data/evals")
 
 
 class MapLoader:
-    def __init__(self):
-        self.scraped_dir = SCRAPED_DATA_DIR
-        self.dataset_dir = DATASET_DIR
-        self.prediction_dir = PREDICTION_DIR
-
     def get_audio_path(self, map_id: str):
-        info_file = self.load_info_file(self.scraped_dir / map_id)
-        return self.scraped_dir / map_id / info_file.songFilename
+        info_file = self.load_info_file(SCRAPED_DATA_DIR / map_id)
+        return SCRAPED_DATA_DIR / map_id / info_file.songFilename
 
     def load_info_file(self, map_dir: Path):
         info_path = map_dir / "Info.dat"
@@ -47,7 +43,7 @@ class MapLoader:
         return diff_tuples
 
     def iter_scraped(self):
-        for map_dir in self.scraped_dir.iterdir():
+        for map_dir in SCRAPED_DATA_DIR.iterdir():
             if not map_dir.is_dir():
                 continue
             info_file = self.load_info_file(map_dir)
@@ -60,7 +56,7 @@ class MapLoader:
             return DatasetMeta.model_validate(json.load(f))
 
     def iter_processed_meta(self):
-        for map_dir in self.dataset_dir.iterdir():
+        for map_dir in DATASET_DIR.iterdir():
             if not map_dir.is_dir():
                 continue
             meta = self.load_meta(map_dir)
@@ -69,7 +65,7 @@ class MapLoader:
             yield (meta, map_id, map_id_diff)
 
     def iter_processed_meta_by_map_id(self, map_id: str):
-        dirs = [p for p in self.dataset_dir.iterdir() if p.name.startswith(map_id)]
+        dirs = [p for p in DATASET_DIR.iterdir() if p.name.startswith(map_id)]
         for map_dir in dirs:
             if not map_dir.is_dir():
                 continue
@@ -87,10 +83,15 @@ class MapLoader:
             return DiffFile.model_validate(json.load(f))
 
     def iter_predicted(self):
-        for dir in self.prediction_dir.iterdir():
+        for dir in PREDICTION_DIR.iterdir():
             if not dir.is_dir():
                 continue
             tokens = self.load_prediction_tokens(dir)
             diff_file = self.load_diff_map(dir / "Expert.dat")
             map_id = dir.name
             yield (tokens, diff_file, map_id)
+
+    def iter_eval_audio(self):
+        for audio_path in EVAL_DIR.iterdir():
+            if audio_path.is_file():
+                yield audio_path

@@ -13,8 +13,9 @@ class BeatGeneratorRunner:
 
     def run(self, audio_path: Path, output_dir_name: str):
         predictions = self.beat_generator.infer(audio_path)
+        notes = self.beat_generator.tokens_to_notes(predictions)
         output_dir = self.beat_generator.save(
-            output_dir_name=output_dir_name, predictions=predictions
+            output_dir_name=output_dir_name, predictions=predictions, notes=notes
         )
         print(f"Saved to {output_dir}")
 

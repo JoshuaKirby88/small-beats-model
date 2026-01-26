@@ -35,7 +35,7 @@ class BeatGenerator:
         bpm = self.audio_processor.get_bpm(audio_path)
         n_windows = self.audio_processor.get_audio_tensor_n_window(audio_tensor, bpm)
 
-        generated_tokens = []
+        generated_tokens: list[int] = []
         current_token = torch.tensor(
             [[EMPTY_TOKEN]], device=self.device, dtype=torch.long
         )
@@ -58,13 +58,13 @@ class BeatGenerator:
                     step_audio, current_token, hidden
                 )
                 probs = torch.softmax(logits[0, 0], dim=0)
-                next_token_index = torch.argmax(probs).item()
+                next_token_index = int(torch.argmax(probs).item())
                 generated_tokens.append(next_token_index)
                 current_token = torch.tensor([[next_token_index]], device=self.device)
 
         return generated_tokens
 
-    def save(self, output_dir_name: str, predictions: list[int]):
+    def tokens_to_notes(self, predictions: list[int]):
         notes: list[DiffNote] = []
 
         for i, prediction in enumerate(predictions):
@@ -75,6 +75,9 @@ class BeatGenerator:
             current_notes = self.vocab.decode(time=time, token=prediction)
             notes.extend(current_notes)
 
+        return notes
+
+    def save(self, output_dir_name: str, predictions: list[int], notes: list[DiffNote]):
         diff_file = DiffFile(_version="2.0.0", _notes=notes)
 
         output_dir = PREDICTION_DIR / output_dir_name

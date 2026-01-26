@@ -1,21 +1,42 @@
-import json
 from math import log2
 
 import torch
 
-from small_beats_model.generate import PREDICTION_DIR
-from small_beats_model.loader import DATASET_DIR, SCRAPED_DATA_DIR, MapLoader
-from small_beats_model.models import DatasetMeta
+from small_beats_model.generate import BeatGenerator
+from small_beats_model.loader import DATASET_DIR, MapLoader
+from small_beats_model.models import DatasetMeta, DiffNote
+from small_beats_model.preprocessing import STEPS_PER_BEAT, AudioProcessor
+from small_beats_model.vocab import Vocab
 
 N_GRAM_N = 2
 
 
+class ModelEvaluator:
+    def __init__(self):
+        self.loader = MapLoader()
+        self.generator = BeatGenerator()
+        self.audio_processor = AudioProcessor()
+        self.vocab = Vocab()
+
+    def get_nps(self, bpm: float, predictions: list[int], notes: list[DiffNote]):
+        duration_s = ((len(predictions) / STEPS_PER_BEAT) / bpm) * 60
+        return len(notes) / duration_s
+
+    def generate_and_evaluate(self):
+        for audio_path in self.loader.iter_eval_audio():
+            print(f"Generating {audio_path.name}")
+            bpm = self.audio_processor.get_bpm(audio_path)
+            print(f"BPM: {bpm}")
+            predictions = self.generator.infer(audio_path)
+            notes = self.generator.tokens_to_notes(predictions)
+            self.generator.save(audio_path.name, predictions, notes)
+
+            nps = self.get_nps(bpm, predictions, notes)
+            print(f"NPS: {round(nps, 2)}")
+
+
 class MapEvaluator:
     def __init__(self):
-        self.scraped_data_dir = SCRAPED_DATA_DIR
-        self.dataset_dir = DATASET_DIR
-        self.predicted_beats_dir = PREDICTION_DIR
-        self.n_gram_n = N_GRAM_N
         self.metrics = [
             "empty_ratio",
             "note_density",
@@ -28,7 +49,7 @@ class MapEvaluator:
     def load_truths(self, map_id: str):
         truths: list[tuple[DatasetMeta, list[int], str]] = []
         for meta, map_id_diff in self.loader.iter_processed_meta_by_map_id(map_id):
-            label_path = self.dataset_dir / map_id_diff / "labels.pt"
+            label_path = DATASET_DIR / map_id_diff / "labels.pt"
             label_tensor: torch.Tensor = torch.load(label_path)
             token_pairs: list[list[int]] = label_tensor.tolist()
             tokens = [t for t_pair in token_pairs for t in t_pair]
@@ -78,7 +99,7 @@ class MapEvaluator:
         empty_ratio = self.empty_ratio(flat_tokens)
         note_density = self.note_density(flat_tokens)
         class_distribution = self.class_distribution(flat_tokens)
-        pattern_diversity = self.pattern_diversity(flat_tokens, self.n_gram_n)
+        pattern_diversity = self.pattern_diversity(flat_tokens, N_GRAM_N)
 
         return {
             "empty_ratio": empty_ratio,
@@ -110,6 +131,9 @@ class MapEvaluator:
 
 
 if __name__ == "__main__":
-    eval = MapEvaluator()
-    average_diffs = eval.run_aggregate()
-    print(json.dumps(average_diffs, indent=2))
+    map_eval = MapEvaluator()
+    # average_diffs = map_eval.run_aggregate()
+    # print(json.dumps(average_diffs, indent=2))
+
+    model_eval = ModelEvaluator()
+    model_eval.generate_and_evaluate()
