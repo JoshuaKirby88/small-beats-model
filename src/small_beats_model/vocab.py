@@ -99,7 +99,7 @@ class VocabBuilder:
         }
 
         sorted_common_hashes = sorted(
-            common_hash_counts, key=lambda x: common_hash_counts[x]
+            common_hash_counts, key=lambda x: common_hash_counts[x], reverse=True
         )
 
         vocab = {
