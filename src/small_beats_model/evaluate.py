@@ -4,7 +4,7 @@ import torch
 
 from small_beats_model.generate import BeatGenerator
 from small_beats_model.loader import DATASET_DIR, MapLoader
-from small_beats_model.models import DatasetMeta, DiffNote
+from small_beats_model.models import DiffNote
 from small_beats_model.preprocessing import STEPS_PER_BEAT, AudioProcessor
 from small_beats_model.vocab import Vocab
 
@@ -21,40 +21,6 @@ class ModelEvaluator:
     def get_nps(self, bpm: float, predictions: list[int], notes: list[DiffNote]):
         duration_s = ((len(predictions) / STEPS_PER_BEAT) / bpm) * 60
         return len(notes) / duration_s
-
-    def generate_and_evaluate(self):
-        for audio_path in self.loader.iter_eval_audio():
-            print(f"Generating {audio_path.name}")
-            bpm = self.audio_processor.get_bpm(audio_path)
-            print(f"BPM: {bpm}")
-            predictions = self.generator.infer(audio_path)
-            notes = self.generator.tokens_to_notes(predictions)
-            self.generator.save(audio_path.name, predictions, notes)
-
-            nps = self.get_nps(bpm, predictions, notes)
-            print(f"NPS: {round(nps, 2)}")
-
-
-class MapEvaluator:
-    def __init__(self):
-        self.metrics = [
-            "empty_ratio",
-            "note_density",
-            "unique_tokens",
-            "entropy",
-            "pattern_diversity",
-        ]
-        self.loader = MapLoader()
-
-    def load_truths(self, map_id: str):
-        truths: list[tuple[DatasetMeta, list[int], str]] = []
-        for meta, map_id_diff in self.loader.iter_processed_meta_by_map_id(map_id):
-            label_path = DATASET_DIR / map_id_diff / "labels.pt"
-            label_tensor: torch.Tensor = torch.load(label_path)
-            token_pairs: list[list[int]] = label_tensor.tolist()
-            tokens = [t for t_pair in token_pairs for t in t_pair]
-            truths.append((meta, tokens, map_id_diff))
-        return truths
 
     def empty_ratio(self, tokens: list[int]):
         n_zeros = tokens.count(0)
@@ -93,14 +59,11 @@ class MapEvaluator:
             unique = set(n_grams)
             return len(unique) / len(n_grams)
 
-    def run_average(self, tokens_list: list[list[int]]):
-        flat_tokens = [t for ts in tokens_list for t in ts]
-
-        empty_ratio = self.empty_ratio(flat_tokens)
-        note_density = self.note_density(flat_tokens)
-        class_distribution = self.class_distribution(flat_tokens)
-        pattern_diversity = self.pattern_diversity(flat_tokens, N_GRAM_N)
-
+    def run_average(self, tokens: list[int]):
+        empty_ratio = self.empty_ratio(tokens)
+        note_density = self.note_density(tokens)
+        class_distribution = self.class_distribution(tokens)
+        pattern_diversity = self.pattern_diversity(tokens, N_GRAM_N)
         return {
             "empty_ratio": empty_ratio,
             "note_density": note_density,
@@ -110,30 +73,23 @@ class MapEvaluator:
         }
 
     def run(self):
-        results: list[dict[str, dict[str, float]]] = []
-        for tokens, diff_file, map_id in self.loader.iter_predicted():
-            truths = self.load_truths(map_id)
-            true_tokens_list = [tokens for (_, tokens, _) in truths]
-            result = {
-                "true": self.run_average(true_tokens_list),
-                "prediction": self.run_average([tokens]),
-            }
-            results.append(result)
-        return results
+        tokens = []
+        for _, _, map_id_diff in self.loader.iter_processed_meta():
+            labels = torch.load(DATASET_DIR / map_id_diff / "labels.pt")
+            tokens.extend(labels.tolist())
+        print(self.run_average(tokens))
 
-    def run_aggregate(self):
-        results = self.run()
-        average_diffs: dict[str, float] = {}
-        for metric in self.metrics:
-            diff = (r["prediction"][metric] - r["true"][metric] for r in results)
-            average_diffs[metric] = sum(diff) / len(results)
-        return average_diffs
+        for audio_path in self.loader.iter_eval_audio():
+            bpm = self.audio_processor.get_bpm(audio_path)
+            print(f"BPM: {bpm}")
+
+            predictions = self.generator.infer(audio_path)
+            notes = self.generator.tokens_to_notes(predictions)
+            self.generator.save(audio_path.name, predictions, notes)
+            print(f"NPS: {round(self.get_nps(bpm, predictions, notes), 2)}")
+            print(self.run_average(predictions))
 
 
 if __name__ == "__main__":
-    map_eval = MapEvaluator()
-    # average_diffs = map_eval.run_aggregate()
-    # print(json.dumps(average_diffs, indent=2))
-
     model_eval = ModelEvaluator()
-    model_eval.generate_and_evaluate()
+    model_eval.run()
