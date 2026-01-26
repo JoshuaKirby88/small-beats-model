@@ -11,7 +11,7 @@ from small_beats_model.dataset import BeatsDataset
 from small_beats_model.loader import RUN_DIR
 from small_beats_model.model import SmallBeatsNet
 from small_beats_model.utils import device_type
-from small_beats_model.vocab import Vocab
+from small_beats_model.vocab import EMPTY_TOKEN, Vocab
 
 BATCH_SIZE = 64
 LEARNING_RATE = 3e-4
@@ -20,8 +20,8 @@ TRAIN_SPLIT = 0.8
 WEIGHT_DECAY = 1e-3
 SCHEDULE_FACTOR = 0.5
 SCHEDULE_PATIENCE = 5
-CLASS_WEIGHT_CLAMP_MAX = 20
-CLASS_WEIGHT_CLAMP_MIN = 0.001
+CLASS_WEIGHT_CLAMP_MAX = 4
+CLASS_WEIGHT_CLAMP_MIN = 0.5
 
 LOSS_LOG_ROUNDING = 2
 
@@ -48,6 +48,7 @@ class Train:
         weights = torch.clamp(
             weights, max=CLASS_WEIGHT_CLAMP_MAX, min=CLASS_WEIGHT_CLAMP_MIN
         )
+        weights[EMPTY_TOKEN] = 0.7
         return weights.to(self.device)
 
     def load_datasets(self):
