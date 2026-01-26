@@ -56,14 +56,11 @@ class SmallBeatsNet(nn.Module):
         # RNN Output:
         # (Batch, 128, 512)
 
-        self.audio_layer_norm = nn.LayerNorm(HIDDEN_DIMS)
-        self.rnn_layer_norm = nn.LayerNorm(HIDDEN_DIMS)
-
-        # Normalized Addition Output:
-        # (Batch, 128, 512)
+        # RNN Output + Audio Feature Concat Output:
+        # (Batch, 128, 1024)
 
         self.head = nn.Sequential(
-            nn.Linear(in_features=HIDDEN_DIMS, out_features=HIDDEN_DIMS),
+            nn.Linear(in_features=HIDDEN_DIMS + HIDDEN_DIMS, out_features=HIDDEN_DIMS),
             nn.ReLU(),
             nn.Dropout(DROPOUT),
             nn.Linear(in_features=HIDDEN_DIMS, out_features=self.vocab.vocab_size),
@@ -79,7 +76,7 @@ class SmallBeatsNet(nn.Module):
         token_embedding = self.token_embedding(prev_tokens)
         rnn_input = torch.cat([audio_features, token_embedding], dim=-1)
         x, hidden = self.rnn(rnn_input, hidden)
-        head_input = self.audio_layer_norm(audio_features) + self.rnn_layer_norm(x)
+        head_input = torch.cat([x, audio_features], dim=-1)
         logits = self.head(head_input)
         return logits, hidden
 
