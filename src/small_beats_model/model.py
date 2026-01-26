@@ -32,7 +32,17 @@ class SmallBeatsNet(nn.Module):
             nn.ReLU(),
         )
 
+        # CNN Output:
+        # (Batch, 512, Sequence)
+
         self.adapter = nn.AdaptiveAvgPool1d(output_size=OUTPUT_STEPS)
+
+        # Adapter Output:
+        # (Batch, 512, 128)
+        # Permute:
+        # (Batch 128, 512)
+        # Concat audio (512 dims) + token embedding (256 dims)
+        # (Batch, 128, 768)
 
         self.rnn = nn.GRU(
             input_size=HIDDEN_DIMS + EMBEDDING_DIMS,
@@ -42,6 +52,15 @@ class SmallBeatsNet(nn.Module):
             bidirectional=False,
             dropout=DROPOUT,
         )
+
+        # RNN Output:
+        # (Batch, 128, 512)
+
+        self.audio_layer_norm = nn.LayerNorm(HIDDEN_DIMS)
+        self.rnn_layer_norm = nn.LayerNorm(HIDDEN_DIMS)
+
+        # Normalized Addition Output:
+        # (Batch, 128, 512)
 
         self.head = nn.Sequential(
             nn.Linear(in_features=HIDDEN_DIMS, out_features=HIDDEN_DIMS),
@@ -60,7 +79,8 @@ class SmallBeatsNet(nn.Module):
         token_embedding = self.token_embedding(prev_tokens)
         rnn_input = torch.cat([audio_features, token_embedding], dim=-1)
         x, hidden = self.rnn(rnn_input, hidden)
-        logits = self.head(x)
+        head_input = self.audio_layer_norm(audio_features) + self.rnn_layer_norm(x)
+        logits = self.head(head_input)
         return logits, hidden
 
     def forward(self, audio, prev_tokens, hidden=None):
