@@ -89,7 +89,13 @@ class Deployer:
         print(f"Pushing '{exported_map_dir.name}' to Quest...")
 
         results = self.run_adb(
-            ["-s", device, "push", str(exported_map_dir), str(self.quest_mod_dir)]
+            [
+                "-s",
+                device,
+                "push",
+                str(exported_map_dir),
+                str(self.quest_mod_dir.as_posix()),
+            ]
         )
 
         if results.returncode == 0:

@@ -38,8 +38,14 @@ class Visualizer:
             stderr=subprocess.DEVNULL,
         )
 
+    def clear(self):
+        if os.name == "nt":
+            os.system("cls")
+        else:
+            os.system("clear")
+
     def render_frame(self, current_notes: list[DiffNote]):
-        os.system("clear")
+        self.clear()
         grid = [[" " for _ in range(NUM_COLS)] for _ in range(NUM_ROWS)]
 
         for note in current_notes:
