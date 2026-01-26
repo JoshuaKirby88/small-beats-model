@@ -15,13 +15,14 @@ from small_beats_model.vocab import EMPTY_TOKEN, Vocab
 
 BATCH_SIZE = 64
 LEARNING_RATE = 3e-4
-EPOCHS = 50
+EPOCHS = 30
 TRAIN_SPLIT = 0.8
 WEIGHT_DECAY = 1e-3
 SCHEDULE_FACTOR = 0.5
-SCHEDULE_PATIENCE = 5
-CLASS_WEIGHT_CLAMP_MAX = 3
+SCHEDULE_PATIENCE = 3
+CLASS_WEIGHT_CLAMP_MAX = 1
 CLASS_WEIGHT_CLAMP_MIN = 1
+EMPTY_TOKEN_WEIGHT = 0.1
 
 LOSS_LOG_ROUNDING = 2
 
@@ -48,7 +49,7 @@ class Train:
         weights = torch.clamp(
             weights, max=CLASS_WEIGHT_CLAMP_MAX, min=CLASS_WEIGHT_CLAMP_MIN
         )
-        weights[EMPTY_TOKEN] = 0.7
+        weights[EMPTY_TOKEN] = EMPTY_TOKEN_WEIGHT
         return weights.to(self.device)
 
     def load_datasets(self):
