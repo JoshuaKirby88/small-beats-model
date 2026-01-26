@@ -28,10 +28,11 @@ class Orchestrator:
 
         print("Generating...")
         predictions = self.generator.infer(audio_path)
+        notes = self.generator.tokens_to_notes(predictions)
 
         print("Saving...")
         output_dir = self.generator.save(
-            output_dir_name=song_name, predictions=predictions
+            output_dir_name=song_name, predictions=predictions, notes=notes
         )
 
         exported_map_dir = self.packager.package(

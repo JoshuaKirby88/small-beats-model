@@ -77,7 +77,7 @@ class SmallBeatsNet(nn.Module):
         rnn_input = torch.cat([audio_features, token_embedding], dim=-1)
         x, hidden = self.rnn(rnn_input, hidden)
         head_input = torch.cat([x, audio_features], dim=-1)
-        logits = self.head(head_input)
+        logits: torch.Tensor = self.head(head_input)
         return logits, hidden
 
     def forward(self, audio, prev_tokens, hidden=None):

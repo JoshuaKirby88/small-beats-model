@@ -10,7 +10,6 @@ from anyascii import anyascii
 
 from small_beats_model.loader import (
     EXPORT_DIR,
-    INPUT_DIR,
     PLACEHOLDER_EXPORT_DIR,
     MapLoader,
 )
@@ -20,13 +19,10 @@ from small_beats_model.preprocessing import AudioProcessor
 
 class Packager:
     def __init__(self):
-        self.input_dir = INPUT_DIR
-        self.export_dir = EXPORT_DIR
-        self.placeholder_export_dir = PLACEHOLDER_EXPORT_DIR
         self.loader = MapLoader()
         self.audio_processor = AudioProcessor()
 
-        self.export_dir.mkdir(parents=True, exist_ok=True)
+        EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     def generate_id(self, length: int):
         chars = string.ascii_lowercase + string.digits
@@ -106,9 +102,7 @@ class Packager:
 
     def copy_cover(self, cover_path: Path, output_dir: Path):
         if cover_path.suffix.lower() not in [".jpg", ".jpeg", ".png"]:
-            return self.copy_cover(
-                self.placeholder_export_dir / "cover.jpg", output_dir
-            )
+            return self.copy_cover(PLACEHOLDER_EXPORT_DIR / "cover.jpg", output_dir)
         else:
             output_path = output_dir / f"cover{cover_path.suffix.lower()}"
             shutil.copy(cover_path, output_path)
@@ -125,7 +119,7 @@ class Packager:
     ):
         id = self.generate_id(5)
         map_export_dir = (
-            self.export_dir
+            EXPORT_DIR
             / f"{id} ({self.sanitize_path(song_name)} - {self.sanitize_path(author_name)})"
         )
         map_export_dir.mkdir(parents=True, exist_ok=True)

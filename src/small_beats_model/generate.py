@@ -14,6 +14,9 @@ from small_beats_model.preprocessing import (
 from small_beats_model.utils import device_type
 from small_beats_model.vocab import EMPTY_TOKEN, Vocab
 
+TEMPERATURE = 0.8
+TOP_K = 20
+
 
 class BeatGenerator:
     def __init__(self):
@@ -29,6 +32,15 @@ class BeatGenerator:
         self.model.eval()
 
         PREDICTION_DIR.mkdir(parents=True, exist_ok=True)
+
+    def sample_next_token(self, logits: torch.Tensor):
+        scaled_logits = logits / TEMPERATURE
+        top_values, top_indices = torch.topk(scaled_logits, TOP_K)
+        filtered_logits = torch.full_like(scaled_logits, float("-inf"))
+        filtered_logits[top_indices] = top_values
+        probs = torch.softmax(filtered_logits, dim=-1)
+        sampled_index = torch.multinomial(probs, num_samples=1)
+        return int(sampled_index.item())
 
     def infer(self, audio_path: Path):
         audio_tensor = self.audio_processor.process_audio(audio_path)
@@ -57,8 +69,7 @@ class BeatGenerator:
                 logits, hidden = self.model.forward_rnn(
                     step_audio, current_token, hidden
                 )
-                probs = torch.softmax(logits[0, 0], dim=0)
-                next_token_index = int(torch.argmax(probs).item())
+                next_token_index = self.sample_next_token(logits[0, 0])
                 generated_tokens.append(next_token_index)
                 current_token = torch.tensor([[next_token_index]], device=self.device)
 
