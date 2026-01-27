@@ -11,27 +11,23 @@ from small_beats_model.dataset import BeatsDataset
 from small_beats_model.loader import RUN_DIR
 from small_beats_model.model import SmallBeatsNet
 from small_beats_model.utils import device_type
-from small_beats_model.vocab import Vocab
+from small_beats_model.vocab import EMPTY_TOKEN, Vocab
 
 BATCH_SIZE = 64
 LEARNING_RATE = 3e-4
-EPOCHS = 30
+EPOCHS = 20
 TRAIN_SPLIT = 0.8
 WEIGHT_DECAY = 1e-3
 SCHEDULE_FACTOR = 0.5
 SCHEDULE_PATIENCE = 3
-CLASS_WEIGHT_CLAMP_MIN = 1
-CLASS_WEIGHT_CLAMP_MAX = 50
-EMPTY_TOKEN_WEIGHT = 0.5
+EMPTY_TOKEN_WEIGHT = 0.6
 
 LOSS_LOG_ROUNDING = 2
 NUM_WORKERS = 4
 
 
 class Train:
-    def __init__(
-        self,
-    ):
+    def __init__(self):
         self.device = torch.device(device_type)
         self.vocab = Vocab()
 
@@ -39,17 +35,8 @@ class Train:
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
     def get_class_weights(self):
-        token_counts = torch.zeros(self.vocab.vocab_size)
-        for _, _, targets in BeatsDataset():
-            for token in targets:
-                token_counts[token] += 1
-        token_counts = token_counts.clamp(min=1)
-        total = token_counts.sum()
-        weights = total / token_counts
-        weights = torch.sqrt(weights)
-        weights = torch.clamp(
-            weights, max=CLASS_WEIGHT_CLAMP_MAX, min=CLASS_WEIGHT_CLAMP_MIN
-        )
+        weights = torch.ones(self.vocab.vocab_size)
+        weights[EMPTY_TOKEN] = EMPTY_TOKEN_WEIGHT
         return weights.to(self.device)
 
     def load_datasets(self):
@@ -156,8 +143,6 @@ class Train:
             "weight_decay": WEIGHT_DECAY,
             "schedule_factor": SCHEDULE_FACTOR,
             "schedule_patience": SCHEDULE_PATIENCE,
-            "class_weight_clamp_max": CLASS_WEIGHT_CLAMP_MAX,
-            "class_weight_clamp_min": CLASS_WEIGHT_CLAMP_MIN,
             "empty_token_weight": EMPTY_TOKEN_WEIGHT,
             "loss_log_rounding": LOSS_LOG_ROUNDING,
             "device": device_type,
