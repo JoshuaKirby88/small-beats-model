@@ -26,6 +26,7 @@ CLASS_WEIGHT_CLAMP_MIN = 1
 EMPTY_TOKEN_WEIGHT = 0.1
 
 LOSS_LOG_ROUNDING = 2
+NUM_WORKERS = 4
 
 app = typer.Typer()
 
@@ -61,13 +62,17 @@ class Train:
         val_dataset = BeatsDataset(allowed_map_ids=val_map_ids)
         train_loader = DataLoader(
             train_dataset,
-            num_workers=0,
+            num_workers=NUM_WORKERS,
             batch_size=BATCH_SIZE,
+            pin_memory=True,
+            persistent_workers=True,
         )
         val_loader = DataLoader(
             val_dataset,
-            num_workers=0,
+            num_workers=NUM_WORKERS,
             batch_size=BATCH_SIZE,
+            pin_memory=True,
+            persistent_workers=True,
         )
 
         return train_loader, val_loader
