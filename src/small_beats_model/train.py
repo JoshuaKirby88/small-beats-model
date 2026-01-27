@@ -1,4 +1,5 @@
 import csv
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -143,8 +144,30 @@ class Train:
 
         print(f"Training run saved to {self.run_dir}")
 
+    def save_meta(self, class_weights: torch.Tensor):
+        meta = {
+            "batch_size": BATCH_SIZE,
+            "learning_rate": LEARNING_RATE,
+            "epochs": EPOCHS,
+            "train_split": TRAIN_SPLIT,
+            "weight_decay": WEIGHT_DECAY,
+            "schedule_factor": SCHEDULE_FACTOR,
+            "schedule_patience": SCHEDULE_PATIENCE,
+            "class_weight_clamp_max": CLASS_WEIGHT_CLAMP_MAX,
+            "class_weight_clamp_min": CLASS_WEIGHT_CLAMP_MIN,
+            "empty_token_weight": EMPTY_TOKEN_WEIGHT,
+            "loss_log_rounding": LOSS_LOG_ROUNDING,
+            "overfit_mode": self.overfit_mode,
+            "device": device_type,
+            "class_weights": class_weights.tolist(),
+        }
+
+        with open(self.run_dir / "meta.json", "w") as f:
+            f.write(json.dumps(meta, indent=2))
+
     def train(self):
         class_weights = self.get_class_weights()
+        self.save_meta(class_weights)
         train_loader, val_loader = self.load_datasets()
 
         model = SmallBeatsNet()
