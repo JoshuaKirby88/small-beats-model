@@ -14,7 +14,7 @@ from small_beats_model.preprocessing import (
 from small_beats_model.utils import device_type
 from small_beats_model.vocab import EMPTY_TOKEN, Vocab
 
-TEMPERATURE = 0.7
+TEMPERATURE = 1
 TOP_K = 20
 
 
