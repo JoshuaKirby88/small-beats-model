@@ -59,14 +59,6 @@ class AudioProcessor:
         tensor = torch.tensor(mfcc)
         return tensor
 
-    def get_audio_tensor_n_window(self, audio_tensor: torch.Tensor, bpm: float):
-        s_per_beat = 60 / bpm
-        window_duration_s = s_per_beat * WINDOW_BEATS
-        total_frames = audio_tensor.shape[1]
-        frames_per_window = window_duration_s * FPS
-        n_windows = math.ceil(total_frames / frames_per_window)
-        return n_windows
-
     def slice_audio_tensor(self, audio_tensor: torch.Tensor, bpm: float, window_i: int):
         s_per_beat = 60 / bpm
         window_duration_s = s_per_beat * WINDOW_BEATS
@@ -93,6 +85,14 @@ class AudioProcessor:
         )
         return audio_resampled.squeeze(0)
 
+    def get_audio_tensor_n_window(self, audio_tensor: torch.Tensor, bpm: float):
+        s_per_beat = 60 / bpm
+        window_duration_s = s_per_beat * WINDOW_BEATS
+        total_frames = audio_tensor.shape[1]
+        frames_per_window = window_duration_s * FPS
+        n_windows = math.ceil(total_frames / frames_per_window)
+        return n_windows
+
     def get_bpm(self, audio_path: Path):
         audio_array, _ = librosa.load(audio_path, sr=SAMPLE_RATE)
         tempo, _ = librosa.beat.beat_track(y=audio_array, sr=SAMPLE_RATE)
@@ -100,6 +100,12 @@ class AudioProcessor:
 
     def get_duration_s(self, audio_tensor: torch.Tensor):
         return audio_tensor.shape[1] * HOP_LENGTH / SAMPLE_RATE
+
+    def get_audio_steps(self, audio_tensor: torch.Tensor, bpm: float):
+        duration_s = self.get_duration_s(audio_tensor)
+        total_beats = duration_s * (bpm / 60)
+        total_steps = total_beats * STEPS_PER_BEAT
+        return total_steps
 
 
 class LabelProcessor:

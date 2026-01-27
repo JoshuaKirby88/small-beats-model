@@ -46,6 +46,7 @@ class BeatGenerator:
         audio_tensor = self.audio_processor.process_audio(audio_path)
         bpm = self.audio_processor.get_bpm(audio_path)
         n_windows = self.audio_processor.get_audio_tensor_n_window(audio_tensor, bpm)
+        total_steps = self.audio_processor.get_audio_steps(audio_tensor, bpm)
 
         generated_tokens: list[int] = []
         current_token = torch.tensor(
@@ -65,6 +66,10 @@ class BeatGenerator:
             window_seq_len = audio_features.size(1)
 
             for step in range(window_seq_len):
+                global_step = (window_i * window_seq_len) + step
+                if global_step > total_steps:
+                    break
+
                 step_audio = audio_features[:, step : step + 1, :]
                 logits, hidden = self.model.forward_rnn(
                     step_audio, current_token, hidden
