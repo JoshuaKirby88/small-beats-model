@@ -1,4 +1,5 @@
 import math
+import warnings
 from math import ceil
 from pathlib import Path
 
@@ -9,6 +10,15 @@ import torch.nn.functional as F
 
 from small_beats_model.models import DiffNote
 from small_beats_model.vocab import Vocab
+
+warnings.filterwarnings(
+    "ignore",
+    message=r".*librosa\.core\.audio\.__audioread_load.*",
+    category=FutureWarning,
+)
+warnings.filterwarnings(
+    "ignore", message=".*PySoundFile failed.*", category=UserWarning
+)
 
 NUM_COLORS = 2
 NUM_DIRECTIONS = 9
