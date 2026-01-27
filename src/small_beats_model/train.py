@@ -5,14 +5,13 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import torch
-import typer
 from torch.utils.data import DataLoader
 
 from small_beats_model.dataset import BeatsDataset
 from small_beats_model.loader import RUN_DIR
 from small_beats_model.model import SmallBeatsNet
 from small_beats_model.utils import device_type
-from small_beats_model.vocab import EMPTY_TOKEN, Vocab
+from small_beats_model.vocab import Vocab
 
 BATCH_SIZE = 64
 LEARNING_RATE = 3e-4
@@ -21,19 +20,18 @@ TRAIN_SPLIT = 0.8
 WEIGHT_DECAY = 1e-3
 SCHEDULE_FACTOR = 0.5
 SCHEDULE_PATIENCE = 3
-CLASS_WEIGHT_CLAMP_MAX = 1
 CLASS_WEIGHT_CLAMP_MIN = 1
-EMPTY_TOKEN_WEIGHT = 0.1
+CLASS_WEIGHT_CLAMP_MAX = 50
+EMPTY_TOKEN_WEIGHT = 0.5
 
 LOSS_LOG_ROUNDING = 2
 NUM_WORKERS = 4
 
-app = typer.Typer()
-
 
 class Train:
-    def __init__(self, overfit_mode=False):
-        self.overfit_mode = overfit_mode
+    def __init__(
+        self,
+    ):
         self.device = torch.device(device_type)
         self.vocab = Vocab()
 
@@ -47,16 +45,16 @@ class Train:
                 token_counts[token] += 1
         token_counts = token_counts.clamp(min=1)
         total = token_counts.sum()
-        weights = total / (token_counts * self.vocab.vocab_size)
+        weights = total / token_counts
+        weights = torch.sqrt(weights)
         weights = torch.clamp(
             weights, max=CLASS_WEIGHT_CLAMP_MAX, min=CLASS_WEIGHT_CLAMP_MIN
         )
-        weights[EMPTY_TOKEN] = EMPTY_TOKEN_WEIGHT
         return weights.to(self.device)
 
     def load_datasets(self):
         train_map_ids, val_map_ids = BeatsDataset.split(
-            train_split=TRAIN_SPLIT, shuffle=not self.overfit_mode, seed=42
+            train_split=TRAIN_SPLIT, shuffle=True, seed=42
         )
         train_dataset = BeatsDataset(allowed_map_ids=train_map_ids)
         val_dataset = BeatsDataset(allowed_map_ids=val_map_ids)
@@ -162,7 +160,6 @@ class Train:
             "class_weight_clamp_min": CLASS_WEIGHT_CLAMP_MIN,
             "empty_token_weight": EMPTY_TOKEN_WEIGHT,
             "loss_log_rounding": LOSS_LOG_ROUNDING,
-            "overfit_mode": self.overfit_mode,
             "device": device_type,
             "class_weights": class_weights.tolist(),
         }
@@ -227,11 +224,6 @@ class Train:
         )
 
 
-@app.command()
-def main(overfit: bool = False):
-    trainer = Train(overfit_mode=overfit)
-    trainer.train()
-
-
 if __name__ == "__main__":
-    app()
+    trainer = Train()
+    trainer.train()
