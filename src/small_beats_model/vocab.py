@@ -6,7 +6,7 @@ from small_beats_model.loader import VOCAB_PATH, MapLoader
 from small_beats_model.models import DiffNote
 
 EMPTY_TOKEN = 0
-COMMON_GRID_STATE_COUNT = 100
+COMMON_GRID_STATE_COUNT = 50
 
 NoteHash = tuple[int, int, int, int]
 VocabHash = tuple[NoteHash, ...]

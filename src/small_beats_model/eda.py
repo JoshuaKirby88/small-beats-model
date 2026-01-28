@@ -26,7 +26,7 @@ class BeatSaverEDA:
         for i in range(0, 1001, 50):
             more_than_i_counts = {k: v for k, v in counts.items() if v > i}
             print(
-                f"{i} ({i / len(notes) * 100:.2f}% of total): {len(more_than_i_counts)}"
+                f"{i} ({i / len(notes) * 100:.4f}% of total): {len(more_than_i_counts)}"
             )
 
     def run(self):

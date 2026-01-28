@@ -25,8 +25,8 @@ TEMP_DATA_DIR = Path("data/temp")
 BEATSAVER_API_URL = "https://api.beatsaver.com"
 SORT = "Rating"
 PAGE_SIZE = 20
-TOTAL_MAPS = 1000
-REQUEST_SLEEP_S = 0.1
+TOTAL_MAPS = 10_000
+REQUEST_SLEEP_S = 0.5
 
 CHARACTERISTIC_FILTERS = ["Standard"]
 
@@ -79,7 +79,7 @@ class BeatSaverScraper:
 
     def filter_map(self, map_dir: Path):
         info_path = map_dir / "Info.dat"
-        with open(info_path, "r") as f:
+        with open(info_path, "r", encoding="utf-8") as f:
             raw_info_file = json.load(f)
 
         is_info_v2 = raw_info_file.get("_version", "").startswith("2.")
@@ -137,11 +137,12 @@ class BeatSaverScraper:
             )
 
         for i, doc in enumerate(docs):
-            if i > 0:
-                time.sleep(self.request_sleep_s)
-            unzip_dir = self.download_map(doc)
-            self.filter_map(unzip_dir)
-            print(f"Download: [{i} / {len(docs)}] {round(i * 100 / len(docs), 2)}%")
+            try:
+                unzip_dir = self.download_map(doc)
+                self.filter_map(unzip_dir)
+                print(f"Download: [{i} / {len(docs)}] {round(i * 100 / len(docs), 2)}%")
+            except Exception as e:
+                print(f"Error processing map {doc.id}: {e}")
 
 
 if __name__ == "__main__":
