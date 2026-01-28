@@ -3,6 +3,7 @@ import torch.nn as nn
 
 from small_beats_model.dataset import WINDOW_BEATS
 from small_beats_model.preprocessing import N_MFCC, STEPS_PER_BEAT
+from small_beats_model.utils import device_type
 from small_beats_model.vocab import Vocab
 
 HIDDEN_DIMS = 512
@@ -18,6 +19,7 @@ class SmallBeatsNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.vocab = Vocab()
+        self.device = torch.device(device_type)
         self.token_embedding = nn.Embedding(self.vocab.vocab_size, EMBEDDING_DIMS)
 
         self.encoder = nn.Sequential(
@@ -56,6 +58,11 @@ class SmallBeatsNet(nn.Module):
         # RNN Output:
         # (Batch, 128, 512)
 
+        self.query_proj = nn.Linear(in_features=HIDDEN_DIMS, out_features=HIDDEN_DIMS)
+        self.key_proj = nn.Linear(in_features=HIDDEN_DIMS, out_features=HIDDEN_DIMS)
+        self.value_proj = nn.Linear(in_features=HIDDEN_DIMS, out_features=HIDDEN_DIMS)
+        self.layer_norm = nn.LayerNorm(normalized_shape=HIDDEN_DIMS)
+
         # RNN Output + Audio Feature Concat Output:
         # (Batch, 128, 1024)
 
@@ -72,15 +79,44 @@ class SmallBeatsNet(nn.Module):
         x = x.permute(0, 2, 1)
         return x
 
-    def forward_rnn(self, audio_features, prev_tokens, hidden=None):
+    def forward_rnn(
+        self,
+        audio_features: torch.Tensor,
+        prev_tokens: torch.Tensor,
+        hidden=None,
+        return_all=False,
+    ):
         token_embedding = self.token_embedding(prev_tokens)
         rnn_input = torch.cat([audio_features, token_embedding], dim=-1)
         x, hidden = self.rnn(rnn_input, hidden)
-        head_input = torch.cat([x, audio_features], dim=-1)
-        logits: torch.Tensor = self.head(head_input)
-        return logits, hidden
 
-    def forward(self, audio, prev_tokens, hidden=None):
+        Q: torch.Tensor = self.query_proj(x)
+        K: torch.Tensor = self.key_proj(x)
+        V: torch.Tensor = self.value_proj(x)
+        K_transposed = K.transpose(dim0=-2, dim1=-1)
+        seq_len = x.size(1)
+        mask = torch.tril(torch.ones(seq_len, seq_len, device=audio_features.device))
+        attention_scores = Q @ K_transposed
+        attention_scores = attention_scores / torch.sqrt(
+            torch.tensor(HIDDEN_DIMS, dtype=attention_scores.dtype)
+        )
+        attention_scores = attention_scores.masked_fill(mask == 0, float("-inf"))
+        attention_weights = torch.softmax(attention_scores, dim=-1)
+        attention_output = attention_weights @ V
+        contextual_output = x + attention_output
+        contextual_output = self.layer_norm(contextual_output)
+
+        head_input = torch.cat([contextual_output, audio_features], dim=-1)
+        logits: torch.Tensor = self.head(head_input)
+
+        if return_all:
+            return logits, hidden
+        else:
+            return logits[:, -1, :], hidden
+
+    def forward(self, audio, prev_tokens, hidden=None, return_all=False):
         audio_features = self.encode_audio(audio)
-        logits, hidden = self.forward_rnn(audio_features, prev_tokens, hidden)
+        logits, hidden = self.forward_rnn(
+            audio_features, prev_tokens, hidden, return_all
+        )
         return logits, hidden

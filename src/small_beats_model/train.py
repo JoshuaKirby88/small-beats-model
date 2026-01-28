@@ -20,7 +20,7 @@ TRAIN_SPLIT = 0.8
 WEIGHT_DECAY = 1e-3
 SCHEDULE_FACTOR = 0.5
 SCHEDULE_PATIENCE = 3
-EMPTY_TOKEN_WEIGHT = 0.6
+EMPTY_TOKEN_WEIGHT = 1.5
 
 LOSS_LOG_ROUNDING = 2
 NUM_WORKERS = 4
@@ -35,7 +35,13 @@ class Train:
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
     def get_class_weights(self):
-        weights = torch.ones(self.vocab.vocab_size)
+        token_counts = torch.zeros(self.vocab.vocab_size)
+        for _, _, targets in BeatsDataset():
+            for token in targets:
+                token_counts[token] += 1
+        token_counts = token_counts.clamp(min=1)
+        total = token_counts.sum()
+        weights = (total / token_counts) ** 0.2
         weights[EMPTY_TOKEN] = EMPTY_TOKEN_WEIGHT
         return weights.to(self.device)
 
@@ -78,7 +84,12 @@ class Train:
             targets: torch.Tensor = targets.to(self.device)
 
             optimizer.zero_grad()
-            predictions, _ = model(audio, prev_tokens)
+            predictions, _ = model(
+                audio=audio,
+                prev_tokens=prev_tokens,
+                hidden=None,
+                return_all=True,
+            )
             loss: torch.Tensor = criterion(predictions.permute(0, 2, 1), targets)
             loss.backward()
             total_loss += loss.item()
@@ -101,7 +112,9 @@ class Train:
                 prev_tokens: torch.Tensor = prev_tokens.to(self.device)
                 targets: torch.Tensor = targets.to(self.device)
 
-                predictions, _ = model(audio, prev_tokens)
+                predictions, _ = model(
+                    audio=audio, prev_tokens=prev_tokens, hidden=None, return_all=True
+                )
                 loss: torch.Tensor = criterion(predictions.permute(0, 2, 1), targets)
                 total_loss += loss.item()
 

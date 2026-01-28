@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 
 from small_beats_model.loader import MODEL_PATH, PREDICTION_DIR
-from small_beats_model.model import SmallBeatsNet
+from small_beats_model.model import OUTPUT_STEPS, SmallBeatsNet
 from small_beats_model.models import DiffFile, DiffNote
 from small_beats_model.preprocessing import (
     STEPS_PER_BEAT,
@@ -48,11 +48,21 @@ class BeatGenerator:
         n_windows = self.audio_processor.get_audio_tensor_n_window(audio_tensor, bpm)
         total_steps = self.audio_processor.get_audio_steps(audio_tensor, bpm)
 
+        all_audio_features = []
+        for window_i in range(n_windows):
+            audio_slice = self.audio_processor.slice_audio_tensor(
+                audio_tensor, bpm, window_i
+            )
+            audio_slice = audio_slice.unsqueeze(0).to(device_type)
+            with torch.no_grad():
+                features = self.model.encode_audio(audio_slice)
+            all_audio_features.append(features)
+        all_audio_features = torch.cat(all_audio_features, dim=1)
+
+        audio_dim = all_audio_features.size(-1)
+        audio_buffer = torch.zeros(1, 128, audio_dim, device=self.device)
         generated_tokens: list[int] = []
-        current_token = torch.tensor(
-            [[EMPTY_TOKEN]], device=self.device, dtype=torch.long
-        )
-        hidden = None
+        token_buffer = [EMPTY_TOKEN] * OUTPUT_STEPS
 
         for window_i in range(n_windows):
             audio_slice = self.audio_processor.slice_audio_tensor(
@@ -70,13 +80,18 @@ class BeatGenerator:
                 if global_step > total_steps:
                     break
 
-                step_audio = audio_features[:, step : step + 1, :]
-                logits, hidden = self.model.forward_rnn(
-                    step_audio, current_token, hidden
+                current_audio = all_audio_features[:, global_step : global_step + 1, :]
+                audio_buffer = torch.cat([audio_buffer[:, 1:, :], current_audio], dim=1)
+                prev_tokens = torch.tensor([token_buffer], device=self.device)
+                logits, _ = self.model.forward_rnn(
+                    audio_features=audio_buffer,
+                    prev_tokens=prev_tokens,
+                    hidden=None,
+                    return_all=False,
                 )
-                next_token_index = self.sample_next_token(logits[0, 0])
+                next_token_index = self.sample_next_token(logits[0])
                 generated_tokens.append(next_token_index)
-                current_token = torch.tensor([[next_token_index]], device=self.device)
+                token_buffer = token_buffer[1:] + [next_token_index]
 
         return generated_tokens
 
