@@ -1,4 +1,7 @@
+from datetime import datetime
 from pathlib import Path
+
+import typer
 
 from small_beats_model.data_scraper import SCRAPED_DATA_DIR
 from small_beats_model.generate import BeatGenerator
@@ -11,25 +14,27 @@ class BeatGeneratorRunner:
         self.beat_generator = BeatGenerator()
         self.loader = MapLoader()
 
-    def run(self, audio_path: Path, output_dir_name: str):
+    def run(self, audio_path: Path):
+        print("Generating...")
         predictions = self.beat_generator.infer(audio_path)
         notes = self.beat_generator.tokens_to_notes(predictions)
+        output_dir_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         output_dir = self.beat_generator.save(
             output_dir_name=output_dir_name, predictions=predictions, notes=notes
         )
         print(f"Saved to {output_dir}")
 
-    def run_on_scraped(self, max: int):
-        for i, (info_file, _, map_id) in enumerate(self.loader.iter_scraped()):
-            if i >= max:
-                break
-            audio_path = self.scraped_data_dir / map_id / info_file.songFilename
-            self.run(audio_path=audio_path, output_dir_name=map_id)
+
+app = typer.Typer()
+
+
+@app.command()
+def main(audio_path: Path | None = None):
+    audio_path = audio_path or Path(typer.prompt("Path to audio file"))
+
+    runner = BeatGeneratorRunner()
+    runner.run(audio_path=audio_path)
 
 
 if __name__ == "__main__":
-    runner = BeatGeneratorRunner()
-    runner.run(
-        audio_path=Path("data/inputs/Bのリベンジ/song.m4a"),
-        output_dir_name="Bのリベンジ",
-    )
+    app()

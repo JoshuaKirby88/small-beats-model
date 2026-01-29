@@ -2,6 +2,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import typer
+
 QUEST_MOD_DIR = Path(
     "/sdcard/ModData/com.beatgames.beatsaber/Mods/SongCore/CustomLevels"
 )
@@ -105,8 +107,16 @@ class Deployer:
             print(results.stderr)
 
 
-if __name__ == "__main__":
+app = typer.Typer()
+
+
+@app.command()
+def main(map_dir: Path | None):
+    map_dir = map_dir or Path(typer.prompt("Path to map folder"))
+
     deployer = Deployer()
-    deployer.push_to_quest(
-        exported_map_dir=Path("data/exports/0ipu0 (Bnoribenji - Joshua Kirby)")
-    )
+    deployer.push_to_quest(exported_map_dir=map_dir)
+
+
+if __name__ == "__main__":
+    app()

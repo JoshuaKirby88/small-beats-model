@@ -34,6 +34,7 @@ class BeatSaverEDA:
         diff_files = [diff_tuple[1] for map in maps for diff_tuple in map[1]]
         notes = [n for d in diff_files for n in d.notes]
 
+        print("Total maps:", len(maps))
         print("Total diffs:", len(diff_files))
         print("Total notes:", len(notes))
 

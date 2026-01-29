@@ -6,6 +6,7 @@ import subprocess
 import unicodedata
 from pathlib import Path
 
+import typer
 from anyascii import anyascii
 
 from small_beats_model.loader import (
@@ -100,8 +101,12 @@ class Packager:
             )
             shutil.move(ogg_output_path, egg_output_path)
 
-    def copy_cover(self, cover_path: Path, output_dir: Path):
-        if cover_path.suffix.lower() not in [".jpg", ".jpeg", ".png"]:
+    def copy_cover(self, cover_path: Path | None, output_dir: Path):
+        if cover_path is None or cover_path.suffix.lower() not in [
+            ".jpg",
+            ".jpeg",
+            ".png",
+        ]:
             return self.copy_cover(PLACEHOLDER_EXPORT_DIR / "cover.jpg", output_dir)
         else:
             output_path = output_dir / f"cover{cover_path.suffix.lower()}"
@@ -112,7 +117,7 @@ class Packager:
         self,
         diff_path: Path,
         audio_path: Path,
-        cover_path: Path,
+        cover_path: Path | None,
         song_name: str,
         song_author_name: str,
         author_name: str,
@@ -156,13 +161,54 @@ class Packager:
         return map_export_dir
 
 
-if __name__ == "__main__":
-    packager = Packager()
-    packager.package(
-        diff_path=Path("data/predictions/Bのリベンジ/Expert.dat"),
-        audio_path=Path("data/inputs/Bのリベンジ/song.m4a"),
-        cover_path=Path("data/inputs/Bのリベンジ/cover.jpg"),
-        song_name="Bのリベンジ",
-        song_author_name="B小町",
-        author_name="Joshua Kirby",
+app = typer.Typer()
+
+
+@app.command()
+def main(
+    diff_path: Path | None = None,
+    audio_path: Path | None = None,
+    cover_path: Path | None = None,
+    song_name: str | None = None,
+    song_author_name: str | None = None,
+    author_name: str | None = None,
+):
+    is_interactive = not any(
+        [
+            diff_path,
+            audio_path,
+            cover_path,
+            song_name,
+            song_author_name,
+            author_name,
+        ]
     )
+
+    diff_path = diff_path or Path(typer.prompt("Path to difficulty file"))
+    audio_path = audio_path or Path(typer.prompt("Path to audio file"))
+    if cover_path is None and is_interactive:
+        val = typer.prompt(
+            "Path to cover image (jpg/png) [Enter to skip]",
+            default="",
+            show_default=False,
+        )
+        cover_path = Path(val) if val else None
+    song_name = song_name or str(typer.prompt("Song name"))
+    song_author_name = song_author_name or str(typer.prompt("Song author name"))
+    author_name = str(author_name or typer.prompt("Author name"))
+
+    packager = Packager()
+    export_dir = packager.package(
+        diff_path=diff_path,
+        audio_path=audio_path,
+        cover_path=cover_path,
+        song_name=song_name,
+        song_author_name=song_author_name,
+        author_name=author_name,
+    )
+
+    print(f"Saved to: {export_dir}")
+
+
+if __name__ == "__main__":
+    app()
