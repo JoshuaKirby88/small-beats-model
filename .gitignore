@@ -12,13 +12,7 @@ wheels/
 # Dataset
 data/
 
-# Model
-models/
-
 # Output
 predictions/
-
-# Vocab
-vocabs/
 
 .DS_Store
